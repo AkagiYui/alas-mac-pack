@@ -1,0 +1,61 @@
+# AzurLaneAutoScript deploy config for the macOS (Apple Silicon) package.
+#
+# Written into  <App>.app/Contents/Resources/payload/app/config/deploy.yaml
+# by scripts/20-assemble.sh.
+#
+# Key difference from the Windows template: the Git / Python / Adb executables
+# point at the bundled toolkit using paths RELATIVE to the repo root
+# (payload/app). Both the Electron shell (packages/main/src/config.ts) and the
+# Python deploy module resolve these relative to the repo root, so the paths
+# stay valid no matter where the user drags the .app.
+#
+#   payload/app          <- repo root (this file lives in payload/app/config/)
+#   payload/miniforge3   <- ../miniforge3
+#   payload/git          <- ../git
+#   payload/platform-tools <- ../platform-tools
+Deploy:
+  Git:
+    Repository: https://github.com/LmeSzinc/AzurLaneAutoScript
+    Branch: master
+    GitExecutable: ../git/bin/git
+    GitProxy: null
+    SSLVerify: true
+    AutoUpdate: true
+    KeepLocalChanges: false
+  Python:
+    PythonExecutable: ../miniforge3/envs/alas/bin/python
+    PypiMirror: null
+    InstallDependencies: true
+    RequirementsFile: ./deploy/mac-silicon/requirements.txt
+  Adb:
+    AdbExecutable: ../platform-tools/adb
+    ReplaceAdb: false
+    AutoConnect: true
+    InstallUiautomator2: true
+  Ocr:
+    UseOcrServer: false
+    StartOcrServer: false
+    OcrServerPort: 22268
+    OcrClientAddress: 127.0.0.1:22268
+  Update:
+    EnableReload: true
+    CheckUpdateInterval: 5
+    AutoRestartTime: 03:50
+  Misc:
+    DiscordRichPresence: false
+  RemoteAccess:
+    EnableRemoteAccess: false
+    SSHUser: null
+    SSHServer: null
+    SSHExecutable: ssh
+  Webui:
+    WebuiHost: 127.0.0.1
+    WebuiPort: 22267
+    Language: en-US
+    Theme: default
+    DpiScaling: true
+    Password: null
+    CDN: false
+    Run: null
+    WebuiSSLKey: null
+    WebuiSSLCert: null

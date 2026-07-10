@@ -1,0 +1,12 @@
+# Build workdir (vendored webapp copy, node_modules, electron-builder output)
+/build/
+
+# Final artifacts (large: ~2GB .app, ~600MB .dmg)
+/dist/
+
+# macOS cruft
+.DS_Store
+
+# node
+node_modules/
+npm-debug.log*
