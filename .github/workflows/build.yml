@@ -48,6 +48,8 @@ jobs:
 
       - name: Build payload (clone repo + copy conda env + adb)
         shell: bash -el {0}     # login shell so `conda` is initialised
+        env:
+          GH_TOKEN: ${{ github.token }}   # for `gh release view` (resolve release tag)
         run: bash scripts/05-build-payload.sh
 
       - name: Build Electron shell
