@@ -3,17 +3,12 @@ name: build-macos
 # Builds the AzurLaneAutoScript macOS (Apple Silicon) Electron package and
 # uploads the .dmg as a workflow artifact.
 #
-# The conda-based python env cannot be rebuilt from pip, so it is shipped as a
-# prebuilt payload archive stored in a GitHub Release of this repo. The workflow
-# downloads that archive and assembles it into the freshly built Electron shell.
+# Nothing heavy is stored in the repo: the conda python env is created at build
+# time from config/environment.yml, the Alas repo is cloned, and adb is
+# downloaded from Google. Everything is packaged into the .app.
 
 on:
   workflow_dispatch:
-    inputs:
-      payload_tag:
-        description: 'Release tag holding the payload archive'
-        required: false
-        default: 'payload-v1'
   push:
     tags:
       - 'v*'
@@ -28,10 +23,9 @@ concurrency:
 jobs:
   build:
     runs-on: macos-14           # Apple Silicon (arm64)
-    env:
-      PAYLOAD_TAG: ${{ github.event.inputs.payload_tag || 'payload-v1' }}
-      PAYLOAD_ASSET: payload-arm64.tar.zst
-      GH_TOKEN: ${{ github.token }}
+    defaults:
+      run:
+        shell: bash -el {0}     # login shell so `conda` is on PATH
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -41,27 +35,27 @@ jobs:
         with:
           node-version-file: '.node-version'
 
-      - name: Install build tools
-        run: brew install create-dmg zstd
+      - name: Install create-dmg
+        run: brew install create-dmg
+
+      - name: Create conda env (alas)
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          miniforge-version: latest
+          activate-environment: alas
+          environment-file: config/environment.yml
+          auto-activate-base: false
+
+      - name: Build payload (clone repo + copy conda env + adb)
+        run: bash scripts/05-build-payload.sh
 
       - name: Build Electron shell
         run: |
           bash scripts/00-prepare-webapp.sh
           bash scripts/10-build-shell.sh
 
-      - name: Download prebuilt payload
-        run: |
-          mkdir -p build/payload
-          gh release download "$PAYLOAD_TAG" \
-            --repo "$GITHUB_REPOSITORY" \
-            --pattern "$PAYLOAD_ASSET" \
-            --output "build/$PAYLOAD_ASSET"
-          echo "Extracting payload ($(du -h "build/$PAYLOAD_ASSET" | cut -f1))..."
-          zstd -dc "build/$PAYLOAD_ASSET" | tar -xf - -C build/payload
-          ls -la build/payload
-
       - name: Assemble payload into .app
-        run: PAYLOAD_SRC="$PWD/build/payload" bash scripts/20-assemble.sh
+        run: bash scripts/20-assemble.sh
 
       - name: Package (ad-hoc sign + dmg)
         run: bash scripts/30-package.sh

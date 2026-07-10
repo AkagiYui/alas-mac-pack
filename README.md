@@ -64,14 +64,14 @@ AzurLaneAutoScript.app/Contents/Resources/
   app.asar                       # the Electron shell (asar-packed)
   payload/
     app/                         # AzurLaneAutoScript git repo (gui.py, config/, deploy/)
-    miniforge3/                  # python env  -> ../miniforge3/envs/alas/bin/python
-    git/bin/git                  # -> ../git/bin/git
+    miniforge3/envs/alas/        # conda env -> bin/python, bin/git
     platform-tools/adb           # -> ../platform-tools/adb
 ```
 
 `config.ts` (the only meaningful code patch) computes
-`alasPath = <Resources>/payload/app` in production and prepends the bundled
-`git`/`adb` to `PATH`, replacing upstream's Windows-only `alasPath = process.cwd()`.
+`alasPath = <Resources>/payload/app` in production and prepends the bundled env
+`bin` (python + git) and `adb` to `PATH`, replacing upstream's Windows-only
+`alasPath = process.cwd()`.
 
 ## Build
 
@@ -88,48 +88,45 @@ Sub-targets: `./build.sh shell | assemble | package`.
 
 - `WEBAPP_SRC` — upstream Electron shell source. Vendored into this repo at
   `webapp-src/` (default), so builds are hermetic.
-- `PAYLOAD_SRC` — a directory that already contains
-  `app/ miniforge3/ git/ platform-tools/`. Defaults to the local Platypus `.app`
-  `Contents/Resources`; CI points it at the extracted payload archive.
-
-```bash
-PAYLOAD_SRC=/some/Resources ./build.sh
-```
-
-The payload (repo + python env + git + adb) is reused as-is; this repo does not
-rebuild the Python environment.
+- `PAYLOAD_SRC` — a directory containing `app/ miniforge3/envs/alas/
+  platform-tools/`. Default `build/payload`, produced by
+  `scripts/05-build-payload.sh`. Locally you can point it at an existing
+  `Contents/Resources` to reuse a prebuilt env:
+  ```bash
+  PAYLOAD_SRC=/some/Resources ./build.sh
+  ```
 
 > **Node version:** the toolchain needs Node ≤ 18. `10-build-shell.sh` auto-hops
 > to a fnm-managed Node 18 if your default is newer; CI pins it via `.node-version`.
 
-## The payload (why it's prebuilt)
+## The payload (built at build time, not stored)
 
-The Alas python env is **conda/miniforge**-based: `requirements.txt` is full of
-`@ file:///…` conda builds (numpy, av, `mxnet==1.5.1`, gluoncv, lz4 …) that are
-**not pip-installable**, and `mxnet 1.5.1` for osx-arm64/py3.8 effectively only
-exists as that prebuilt env. So the ~2GB `miniforge3` env can't be reconstructed
-from `pip` in CI — it is shipped as a prebuilt archive.
+Nothing heavy lives in this repo — only config + scripts. The payload is produced
+fresh by [`scripts/05-build-payload.sh`](scripts/05-build-payload.sh):
 
-- `payload-arm64.tar.zst` (≈570 MB) contains `app/ miniforge3/ git/ platform-tools/`.
-- It's stored as an asset on a GitHub **Release** (tag `payload-v1`).
-- Regenerate it from a known-good `Contents/Resources` with:
-  ```bash
-  tar -C <Resources> -cf - app miniforge3 git platform-tools \
-    | zstd -T0 -17 -o payload-arm64.tar.zst
-  gh release create payload-v1 payload-arm64.tar.zst   # or: gh release upload
-  ```
+- **python env** — `conda env create -f config/environment.yml` builds the `alas`
+  env (python 3.8 + `mxnet==1.5.1`, opencv, numpy, av … from the `anaconda` /
+  `conda-forge` channels). These are conda-only packages, not pip-installable,
+  which is why conda is required. `environment.yml` is adapted from
+  [Dreamry2C/MAC-arm-conda-alas](https://github.com/Dreamry2C/MAC-arm-conda-alas)
+  (+ a bundled `git`). The built env is copied into the bundle at
+  `payload/miniforge3/envs/alas`.
+- **app repo** — `git clone` of AzurLaneAutoScript → `payload/app` (a real
+  checkout, so the in-app self-update works).
+- **adb** — Google's `platform-tools-latest-darwin.zip` → `payload/platform-tools`.
 
 ## Continuous Integration
 
 [`.github/workflows/build.yml`](.github/workflows/build.yml) runs on
-`macos-14` (Apple Silicon):
+`macos-14` (Apple Silicon) and uploads to a workflow **artifact** (no release):
 
-1. build the Electron shell (Node 18, npm, electron-builder),
-2. download + extract the payload archive from the `payload-v1` release,
-3. assemble + ad-hoc sign + `create-dmg`,
-4. headless smoke test (launch the bundled python, assert the webui returns
+1. `setup-miniconda` + create the `alas` env from `config/environment.yml`,
+2. build the payload (clone repo, copy env, download adb),
+3. build the Electron shell (Node 18, npm, electron-builder),
+4. assemble + ad-hoc sign + `create-dmg`,
+5. headless smoke test (launch the bundled python, assert the webui returns
    HTTP 200),
-5. upload `dist/*.dmg` as the **`AzurLaneAutoScript-mac-arm64-dmg`** artifact.
+6. upload `dist/*.dmg` as the **`AzurLaneAutoScript-mac-arm64-dmg`** artifact.
 
 Trigger: push a `v*` tag, or run **build-macos** manually (`workflow_dispatch`).
 
@@ -137,7 +134,9 @@ Trigger: push a `v*` tag, or run **build-macos** manually (`workflow_dispatch`).
 
 | Step | Script                    | Does                                                        |
 | ---- | ------------------------- | ----------------------------------------------------------- |
+| 0.5  | `05-build-payload.sh`     | clone repo, copy conda env, download adb → `build/payload`  |
 | 0    | `00-prepare-webapp.sh`    | copy webapp → `build/`, overlay mac patches                 |
 | 1    | `10-build-shell.sh`       | `npm install`, vite build, `electron-builder --dir`         |
 | 2    | `20-assemble.sh`          | copy payload into `.app`, write `deploy.yaml`               |
 | 3    | `30-package.sh`           | ad-hoc sign, `create-dmg` → `dist/`                         |
+| 4    | `40-smoke-test.sh`        | headless: launch bundled python, assert webui HTTP 200      |

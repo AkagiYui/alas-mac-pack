@@ -11,22 +11,23 @@ const path = require('path');
  *
  * The macOS package layout (see alas-mac-pack assemble step) is:
  *   AzurLaneAutoScript.app/Contents/Resources/
- *     app.asar                 <- this electron shell
+ *     app.asar                        <- this electron shell
  *     payload/
- *       app/                   <- the AzurLaneAutoScript git repo (gui.py, config/, deploy/)
- *       miniforge3/            <- bundled python env
- *       git/bin/git            <- bundled git (used by the in-app self-update)
- *       platform-tools/adb     <- bundled adb
+ *       app/                          <- the AzurLaneAutoScript git repo (gui.py, config/, deploy/)
+ *       miniforge3/envs/alas/         <- conda python env (bin/python, bin/git)
+ *       platform-tools/adb            <- bundled adb
  *
  * So in production we resolve the repo relative to `process.resourcesPath` and
- * prepend the bundled git + adb to PATH so the Python deploy/self-update works.
+ * prepend the bundled env bin (python + git) and adb to PATH so the Python
+ * deploy/self-update works.
  */
 function resolveAlasPath() {
   if (import.meta.env.PROD) {
     const payload = path.join(process.resourcesPath, 'payload');
     const extraBin = [
-      path.join(payload, 'git', 'bin'),
+      path.join(payload, 'miniforge3', 'envs', 'alas', 'bin'),
       path.join(payload, 'platform-tools'),
+      path.join(payload, 'git', 'bin'), // legacy layout, harmless if absent
     ].join(path.delimiter);
     process.env.PATH = extraBin + path.delimiter + (process.env.PATH || '');
     return path.join(payload, 'app');

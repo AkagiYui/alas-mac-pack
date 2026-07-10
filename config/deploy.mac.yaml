@@ -9,15 +9,15 @@
 # Python deploy module resolve these relative to the repo root, so the paths
 # stay valid no matter where the user drags the .app.
 #
-#   payload/app          <- repo root (this file lives in payload/app/config/)
-#   payload/miniforge3   <- ../miniforge3
-#   payload/git          <- ../git
-#   payload/platform-tools <- ../platform-tools
+#   payload/app                      <- repo root (this file: payload/app/config/)
+#   payload/miniforge3/envs/alas     <- ../miniforge3/envs/alas  (conda env: python + git)
+#   payload/platform-tools           <- ../platform-tools        (adb)
 Deploy:
   Git:
     Repository: https://github.com/LmeSzinc/AzurLaneAutoScript
     Branch: master
-    GitExecutable: ../git/bin/git
+    # git is bundled inside the conda env; falls back to system git if absent.
+    GitExecutable: ../miniforge3/envs/alas/bin/git
     GitProxy: null
     SSLVerify: true
     AutoUpdate: true
@@ -25,8 +25,10 @@ Deploy:
   Python:
     PythonExecutable: ../miniforge3/envs/alas/bin/python
     PypiMirror: null
-    InstallDependencies: true
-    RequirementsFile: ./deploy/mac-silicon/requirements.txt
+    # Deps are provided by the conda env. Keep runtime pip installs off so an
+    # update never tries to pip-install conda-only packages (e.g. mxnet).
+    InstallDependencies: false
+    RequirementsFile: requirements.txt
   Adb:
     AdbExecutable: ../platform-tools/adb
     ReplaceAdb: false
