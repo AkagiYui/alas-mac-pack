@@ -23,9 +23,6 @@ concurrency:
 jobs:
   build:
     runs-on: macos-14           # Apple Silicon (arm64)
-    defaults:
-      run:
-        shell: bash -el {0}     # login shell so `conda` is on PATH
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -47,6 +44,7 @@ jobs:
           auto-activate-base: false
 
       - name: Build payload (clone repo + copy conda env + adb)
+        shell: bash -el {0}     # login shell so `conda` is initialised
         run: bash scripts/05-build-payload.sh
 
       - name: Build Electron shell
