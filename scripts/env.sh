@@ -38,8 +38,11 @@ WEBAPP_SRC="${WEBAPP_SRC:-$REPO_ROOT/webapp-src}"
 PAYLOAD_SRC="${PAYLOAD_SRC:-$BUILD_DIR/payload}"
 
 # Sources used by 05-build-payload.sh
-ALAS_REPO="${ALAS_REPO:-https://github.com/LmeSzinc/AzurLaneAutoScript}"
-ALAS_BRANCH="${ALAS_BRANCH:-master}"
+ALAS_UPSTREAM="${ALAS_UPSTREAM:-LmeSzinc/AzurLaneAutoScript}"   # owner/repo (for gh)
+ALAS_REPO="${ALAS_REPO:-https://github.com/$ALAS_UPSTREAM}"
+# Git ref to package. Empty => resolve the LATEST RELEASE's tag (not master HEAD),
+# so the app is built from the same commit as upstream's newest release.
+ALAS_REF="${ALAS_REF:-}"
 CONDA_ENV_NAME="${CONDA_ENV_NAME:-alas}"
 # Absolute path to the created conda env (contains bin/python). Auto-detected
 # from `conda` if left empty.

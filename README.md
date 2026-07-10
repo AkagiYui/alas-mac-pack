@@ -111,8 +111,10 @@ fresh by [`scripts/05-build-payload.sh`](scripts/05-build-payload.sh):
   [Dreamry2C/MAC-arm-conda-alas](https://github.com/Dreamry2C/MAC-arm-conda-alas)
   (+ a bundled `git`). The built env is copied into the bundle at
   `payload/miniforge3/envs/alas`.
-- **app repo** — `git clone` of AzurLaneAutoScript → `payload/app` (a real
-  checkout, so the in-app self-update works).
+- **app repo** — `git clone` of AzurLaneAutoScript at its **latest release tag**
+  (not master HEAD) → `payload/app` (a real checkout, so the in-app self-update
+  works). The release tag is resolved at build time via
+  `gh release view LmeSzinc/AzurLaneAutoScript`.
 - **adb** — Google's `platform-tools-latest-darwin.zip` → `payload/platform-tools`.
 
 ### macOS 15 (Sequoia) rpath fix
@@ -131,14 +133,18 @@ and re-signs each affected Mach-O; it runs inside `05-build-payload.sh`.
 ## Continuous Integration
 
 [`.github/workflows/build.yml`](.github/workflows/build.yml) runs on
-`macos-14` (Apple Silicon) and uploads to a workflow **artifact** (no release):
+**`macos-15`** (Apple Silicon — the same OS users have, so the smoke test really
+validates) and uploads to a workflow **artifact** (no release). All build work
+happens in CI; nothing is built locally.
 
 1. `setup-miniconda` + create the `alas` env from `config/environment.yml`,
-2. build the payload (clone repo, copy env, download adb),
+2. build the payload (clone repo **at the latest release tag**, copy + rpath-fix
+   the env, download adb),
 3. build the Electron shell (Node 18, npm, electron-builder),
 4. assemble + ad-hoc sign + `create-dmg`,
-5. headless smoke test (launch the bundled python, assert the webui returns
-   HTTP 200),
+5. **end-to-end smoke test**: import numpy/cv2/mxnet from the bundled python, then
+   launch the real Electron app and drive a pywebio websocket session
+   (`index()` → `add_css`) — fails the build if the GUI can't render,
 6. upload `dist/*.dmg` as the **`AzurLaneAutoScript-mac-arm64-dmg`** artifact.
 
 Trigger: push a `v*` tag, or run **build-macos** manually (`workflow_dispatch`).

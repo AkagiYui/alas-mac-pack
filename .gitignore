@@ -10,3 +10,7 @@
 # node
 node_modules/
 npm-debug.log*
+
+# python bytecode
+__pycache__/
+*.pyc

@@ -14,12 +14,17 @@ log "Building payload -> $PAYLOAD"
 rm -rf "$PAYLOAD"
 mkdir -p "$PAYLOAD"
 
-# --- 1. app repo ------------------------------------------------------------
-log "Cloning $ALAS_REPO ($ALAS_BRANCH)"
-git clone --depth 1 --branch "$ALAS_BRANCH" "$ALAS_REPO" "$PAYLOAD/app"
-# keep .git — the in-app self-update needs a real checkout
-"$PAYLOAD/app/.git" >/dev/null 2>&1 || true
+# --- 1. app repo (packaged from the latest RELEASE commit, not master HEAD) --
+ref="$ALAS_REF"
+if [ -z "$ref" ]; then
+  log "Resolving latest release tag of $ALAS_UPSTREAM"
+  ref="$(gh release view --repo "$ALAS_UPSTREAM" --json tagName -q .tagName)"
+  [ -n "$ref" ] || die "could not resolve latest release tag (is gh authenticated?)"
+fi
+log "Cloning $ALAS_REPO at release ref: $ref"
+git clone --depth 1 --branch "$ref" "$ALAS_REPO" "$PAYLOAD/app"
 [ -d "$PAYLOAD/app/.git" ] || die "cloned repo has no .git"
+log "Packaged commit: $(git -C "$PAYLOAD/app" rev-parse --short HEAD) (release $ref)"
 # Trim what the release build doesn't need.
 rm -rf "$PAYLOAD/app/.github" "$PAYLOAD/app/webapp" "$PAYLOAD/app/log"
 

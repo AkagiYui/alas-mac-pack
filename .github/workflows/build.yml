@@ -4,8 +4,11 @@ name: build-macos
 # uploads the .dmg as a workflow artifact.
 #
 # Nothing heavy is stored in the repo: the conda python env is created at build
-# time from config/environment.yml, the Alas repo is cloned, and adb is
-# downloaded from Google. Everything is packaged into the .app.
+# time from config/environment.yml, the Alas repo is cloned at its LATEST RELEASE
+# commit, and adb is downloaded from Google. Everything is packaged into the .app.
+#
+# Runs on macos-15 so the end-to-end smoke test validates on the same OS users
+# have (macOS 15 / Sequoia) — a broken artifact fails the build instead of shipping.
 
 on:
   workflow_dispatch:
@@ -22,7 +25,7 @@ concurrency:
 
 jobs:
   build:
-    runs-on: macos-14           # Apple Silicon (arm64)
+    runs-on: macos-15           # Apple Silicon (arm64), macOS 15 = users' OS
     steps:
       - name: Checkout
         uses: actions/checkout@v4
