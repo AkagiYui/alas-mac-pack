@@ -153,8 +153,9 @@ Trigger: push a `v*` tag, or run **build-macos** manually (`workflow_dispatch`).
 
 | Step | Script                    | Does                                                        |
 | ---- | ------------------------- | ----------------------------------------------------------- |
-| 0.5  | `05-build-payload.sh`     | clone repo, copy conda env, download adb → `build/payload`  |
+| 0.5  | `05-build-payload.sh`     | clone repo (release tag), copy conda env, download adb; extract icon art |
 | 0    | `00-prepare-webapp.sh`    | copy webapp → `build/`, overlay mac patches                 |
+| 0.6  | `06-make-icons.sh`        | generate the dock (`.icns`) + menu-bar (`tray.png`) icons from the upstream art |
 | 1    | `10-build-shell.sh`       | `npm install`, vite build, `electron-builder --dir`         |
 | 2    | `20-assemble.sh`          | copy payload into `.app`, write `deploy.yaml`               |
 | 3    | `30-package.sh`           | ad-hoc sign, `create-dmg` → `dist/`                         |

@@ -25,6 +25,14 @@ log "Cloning $ALAS_REPO at release ref: $ref"
 git clone --depth 1 --branch "$ref" "$ALAS_REPO" "$PAYLOAD/app"
 [ -d "$PAYLOAD/app/.git" ] || die "cloned repo has no .git"
 log "Packaged commit: $(git -C "$PAYLOAD/app" rev-parse --short HEAD) (release $ref)"
+# Extract the app-icon source art from the upstream repo (used by 06-make-icons.sh),
+# before trimming webapp/ away.
+if [ -f "$PAYLOAD/app/webapp/buildResources/icon.png" ]; then
+  cp "$PAYLOAD/app/webapp/buildResources/icon.png" "$BUILD_DIR/icon-source.png"
+  log "Extracted icon source -> $BUILD_DIR/icon-source.png"
+else
+  warn "upstream icon.png not found; icon generation will fall back to repo assets"
+fi
 # Trim what the release build doesn't need.
 rm -rf "$PAYLOAD/app/.github" "$PAYLOAD/app/webapp" "$PAYLOAD/app/log"
 

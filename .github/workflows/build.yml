@@ -35,8 +35,8 @@ jobs:
         with:
           node-version-file: '.node-version'
 
-      - name: Install create-dmg
-        run: brew install create-dmg
+      - name: Install build tools
+        run: brew install create-dmg librsvg   # librsvg -> rsvg-convert for icon generation
 
       - name: Create conda env (alas)
         uses: conda-incubator/setup-miniconda@v3
@@ -55,6 +55,7 @@ jobs:
       - name: Build Electron shell
         run: |
           bash scripts/00-prepare-webapp.sh
+          bash scripts/06-make-icons.sh
           bash scripts/10-build-shell.sh
 
       - name: Assemble payload into .app

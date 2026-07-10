@@ -19,9 +19,10 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 S="$HERE/scripts"
 
 case "${1:-all}" in
-  all)      bash "$S/00-prepare-webapp.sh"; bash "$S/10-build-shell.sh"; bash "$S/20-assemble.sh"; bash "$S/30-package.sh" ;;
+  all)      bash "$S/00-prepare-webapp.sh"; bash "$S/06-make-icons.sh"; bash "$S/10-build-shell.sh"; bash "$S/20-assemble.sh"; bash "$S/30-package.sh" ;;
   payload)  bash "$S/05-build-payload.sh" ;;
-  shell)    bash "$S/00-prepare-webapp.sh"; bash "$S/10-build-shell.sh" ;;
+  icons)    bash "$S/06-make-icons.sh" ;;
+  shell)    bash "$S/00-prepare-webapp.sh"; bash "$S/06-make-icons.sh"; bash "$S/10-build-shell.sh" ;;
   assemble) bash "$S/20-assemble.sh" ;;
   package)  bash "$S/30-package.sh" ;;
   smoke)    bash "$S/40-smoke-test.sh" ;;
