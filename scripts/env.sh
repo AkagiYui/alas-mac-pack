@@ -11,15 +11,18 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 LME_ROOT="${LME_ROOT:-$(cd "$REPO_ROOT/.." && pwd)}"
 
 # --- Inputs -----------------------------------------------------------------
-# Upstream Electron shell source (the vite-electron-builder `webapp/`).
-WEBAPP_SRC="${WEBAPP_SRC:-$LME_ROOT/origin_not_modified/azurlaneautoscript/webapp}"
+# Upstream Electron shell source (the vite-electron-builder `webapp/`), vendored
+# into this repo for reproducible/hermetic builds (CI has no other copy).
+WEBAPP_SRC="${WEBAPP_SRC:-$REPO_ROOT/webapp-src}"
 
 # Prebuilt payload: a directory that already contains a working
 #   app/            (AzurLaneAutoScript git repo)
 #   miniforge3/     (python env with all deps for env `alas`)
 #   git/bin/git
 #   platform-tools/adb
-# The current Platypus .app's Contents/Resources is exactly this.
+# The conda env can't be rebuilt from pip, so it is shipped prebuilt.
+#  - Locally: defaults to the current Platypus .app's Contents/Resources.
+#  - CI: downloads a payload archive and points PAYLOAD_SRC at the extract dir.
 PAYLOAD_SRC="${PAYLOAD_SRC:-$LME_ROOT/alas/AzurLaneAutoScript.app/Contents/Resources}"
 
 # --- Product ----------------------------------------------------------------

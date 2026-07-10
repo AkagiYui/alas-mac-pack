@@ -86,20 +86,52 @@ Sub-targets: `./build.sh shell | assemble | package`.
 
 ### Inputs (override via env)
 
-By default the scripts pull the heavy assets from the sibling `lme` working copy:
-
-- `WEBAPP_SRC` — upstream Electron shell
-  (default `../origin_not_modified/azurlaneautoscript/webapp`)
-- `PAYLOAD_SRC` — a `Contents/Resources` that already contains
-  `app/ miniforge3/ git/ platform-tools/`
-  (default the current Platypus `.app`)
+- `WEBAPP_SRC` — upstream Electron shell source. Vendored into this repo at
+  `webapp-src/` (default), so builds are hermetic.
+- `PAYLOAD_SRC` — a directory that already contains
+  `app/ miniforge3/ git/ platform-tools/`. Defaults to the local Platypus `.app`
+  `Contents/Resources`; CI points it at the extracted payload archive.
 
 ```bash
-PAYLOAD_SRC=/some/Resources WEBAPP_SRC=/some/webapp ./build.sh
+PAYLOAD_SRC=/some/Resources ./build.sh
 ```
 
 The payload (repo + python env + git + adb) is reused as-is; this repo does not
 rebuild the Python environment.
+
+> **Node version:** the toolchain needs Node ≤ 18. `10-build-shell.sh` auto-hops
+> to a fnm-managed Node 18 if your default is newer; CI pins it via `.node-version`.
+
+## The payload (why it's prebuilt)
+
+The Alas python env is **conda/miniforge**-based: `requirements.txt` is full of
+`@ file:///…` conda builds (numpy, av, `mxnet==1.5.1`, gluoncv, lz4 …) that are
+**not pip-installable**, and `mxnet 1.5.1` for osx-arm64/py3.8 effectively only
+exists as that prebuilt env. So the ~2GB `miniforge3` env can't be reconstructed
+from `pip` in CI — it is shipped as a prebuilt archive.
+
+- `payload-arm64.tar.zst` (≈570 MB) contains `app/ miniforge3/ git/ platform-tools/`.
+- It's stored as an asset on a GitHub **Release** (tag `payload-v1`).
+- Regenerate it from a known-good `Contents/Resources` with:
+  ```bash
+  tar -C <Resources> -cf - app miniforge3 git platform-tools \
+    | zstd -T0 -17 -o payload-arm64.tar.zst
+  gh release create payload-v1 payload-arm64.tar.zst   # or: gh release upload
+  ```
+
+## Continuous Integration
+
+[`.github/workflows/build.yml`](.github/workflows/build.yml) runs on
+`macos-14` (Apple Silicon):
+
+1. build the Electron shell (Node 18, npm, electron-builder),
+2. download + extract the payload archive from the `payload-v1` release,
+3. assemble + ad-hoc sign + `create-dmg`,
+4. headless smoke test (launch the bundled python, assert the webui returns
+   HTTP 200),
+5. upload `dist/*.dmg` as the **`AzurLaneAutoScript-mac-arm64-dmg`** artifact.
+
+Trigger: push a `v*` tag, or run **build-macos** manually (`workflow_dispatch`).
 
 ## Pipeline
 

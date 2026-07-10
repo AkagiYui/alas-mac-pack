@@ -1,0 +1,79 @@
+name: build-macos
+
+# Builds the AzurLaneAutoScript macOS (Apple Silicon) Electron package and
+# uploads the .dmg as a workflow artifact.
+#
+# The conda-based python env cannot be rebuilt from pip, so it is shipped as a
+# prebuilt payload archive stored in a GitHub Release of this repo. The workflow
+# downloads that archive and assembles it into the freshly built Electron shell.
+
+on:
+  workflow_dispatch:
+    inputs:
+      payload_tag:
+        description: 'Release tag holding the payload archive'
+        required: false
+        default: 'payload-v1'
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: macos-14           # Apple Silicon (arm64)
+    env:
+      PAYLOAD_TAG: ${{ github.event.inputs.payload_tag || 'payload-v1' }}
+      PAYLOAD_ASSET: payload-arm64.tar.zst
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.node-version'
+
+      - name: Install build tools
+        run: brew install create-dmg zstd
+
+      - name: Build Electron shell
+        run: |
+          bash scripts/00-prepare-webapp.sh
+          bash scripts/10-build-shell.sh
+
+      - name: Download prebuilt payload
+        run: |
+          mkdir -p build/payload
+          gh release download "$PAYLOAD_TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --pattern "$PAYLOAD_ASSET" \
+            --output "build/$PAYLOAD_ASSET"
+          echo "Extracting payload ($(du -h "build/$PAYLOAD_ASSET" | cut -f1))..."
+          zstd -dc "build/$PAYLOAD_ASSET" | tar -xf - -C build/payload
+          ls -la build/payload
+
+      - name: Assemble payload into .app
+        run: PAYLOAD_SRC="$PWD/build/payload" bash scripts/20-assemble.sh
+
+      - name: Package (ad-hoc sign + dmg)
+        run: bash scripts/30-package.sh
+
+      - name: Headless smoke test (python + webui)
+        run: bash scripts/40-smoke-test.sh
+
+      - name: Upload DMG artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: AzurLaneAutoScript-mac-arm64-dmg
+          path: dist/*.dmg
+          if-no-files-found: error
+          compression-level: 0    # dmg is already compressed
+          retention-days: 14
