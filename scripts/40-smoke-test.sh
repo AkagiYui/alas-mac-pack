@@ -18,6 +18,13 @@ PORT="${PORT:-22267}"
 [ -x "$PY" ] || die "bundled python missing: $PY"
 log "Using python: $($PY -V 2>&1)  port: $PORT"
 
+# The scheduler loads native extensions (cv2 -> numpy, mxnet). Assert they
+# import from the *packaged* python — starting the webui alone does not exercise
+# them, so this is what catches the macOS 15 duplicate-LC_RPATH dyld failure.
+log "Checking native extension imports (numpy / cv2 / mxnet)"
+"$PY" -c "import numpy, cv2, mxnet; print('  native imports OK')" \
+  || die "native extension import failed (see error above) — the scheduler would crash"
+
 LOG="$BUILD_DIR/smoke.log"
 ( cd "$PAYLOAD/app" && "$PY" -u gui.py --port "$PORT" --electron > "$LOG" 2>&1 ) &
 GPID=$!

@@ -38,6 +38,20 @@ cp -RL "$prefix" "$PAYLOAD/miniforge3/envs/$CONDA_ENV_NAME"
 find "$PAYLOAD/miniforge3" -name '__pycache__' -type d -prune -exec rm -rf {} + 2>/dev/null || true
 rm -rf "$PAYLOAD/miniforge3/envs/$CONDA_ENV_NAME/pkgs" 2>/dev/null || true
 
+# macOS 15 (Sequoia) dyld rejects Mach-O with duplicate LC_RPATH entries, which
+# several conda arm64 libs (libopenblas, libgfortran, numpy .so, ...) ship. This
+# breaks `import numpy` at runtime (not caught on macos-14 CI). De-duplicate and
+# re-sign so the env loads on Sequoia.
+log "De-duplicating LC_RPATH in the env (macOS 15 compatibility)"
+python3 "$REPO_ROOT/scripts/fix-env-rpaths.py" "$PAYLOAD/miniforge3/envs/$CONDA_ENV_NAME"
+
+log "Verifying the env imports its native extensions"
+"$PAYLOAD/miniforge3/envs/$CONDA_ENV_NAME/bin/python" - <<'PYEOF'
+import numpy, cv2, mxnet
+from PIL import Image
+print(f"  numpy {numpy.__version__}, cv2 {cv2.__version__}, mxnet {mxnet.__version__} — OK")
+PYEOF
+
 # --- 3. platform-tools (adb) ------------------------------------------------
 log "Downloading platform-tools"
 tmp="$BUILD_DIR/platform-tools.zip"

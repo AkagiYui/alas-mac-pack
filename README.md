@@ -115,6 +115,19 @@ fresh by [`scripts/05-build-payload.sh`](scripts/05-build-payload.sh):
   checkout, so the in-app self-update works).
 - **adb** — Google's `platform-tools-latest-darwin.zip` → `payload/platform-tools`.
 
+### macOS 15 (Sequoia) rpath fix
+
+Several conda arm64 libs (libopenblas, libgfortran, numpy's `_multiarray_umath.so`, …)
+ship **duplicate `LC_RPATH`** load commands. macOS ≤14 tolerates this; **macOS 15
+dyld rejects it**, so `import numpy`/`cv2` fails and the scheduler crashes with
+`Library not loaded: @rpath/libgfortran.5.dylib … (duplicate LC_RPATH '@loader_path')`.
+[`scripts/fix-env-rpaths.py`](scripts/fix-env-rpaths.py) de-duplicates the rpaths
+and re-signs each affected Mach-O; it runs inside `05-build-payload.sh`.
+
+> Note: CI runners are macos-14, where the bug does **not** reproduce, so CI
+> cannot catch it. The fix is verified on macOS 15. The smoke test now also
+> imports numpy/cv2/mxnet to catch gross breakage.
+
 ## Continuous Integration
 
 [`.github/workflows/build.yml`](.github/workflows/build.yml) runs on
