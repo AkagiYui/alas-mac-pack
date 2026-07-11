@@ -51,18 +51,32 @@ cp -RL "$prefix" "$PAYLOAD/miniforge3/envs/$CONDA_ENV_NAME"
 find "$PAYLOAD/miniforge3" -name '__pycache__' -type d -prune -exec rm -rf {} + 2>/dev/null || true
 rm -rf "$PAYLOAD/miniforge3/envs/$CONDA_ENV_NAME/pkgs" 2>/dev/null || true
 
-# Slim the env: remove things alas never loads at runtime. Verified safe — cv2
-# links neither Qt nor LLVM and there are no PyQt/PySide bindings, so the whole
-# Qt stack (WebEngine/WebKit/…) and LLVM/clang are dead weight; dev files
-# (headers, static libs, cmake/pkgconfig, docs) are build-only. Saves ~400MB.
+# Slim the env: remove what alas never loads at runtime.
+# NOTE: opencv here is the GUI build (cv2 links libQt5Widgets), so keep CORE Qt
+# (Core/Gui/Widgets/DBus/Svg/... + plugins). Only the big top-level Qt modules
+# that nothing links (WebEngine/WebKit/3D/Quick/Qml/Multimedia — there are no
+# PyQt/PySide bindings) and build-only dev files are removed. The verify below
+# imports cv2/mxnet/... so a bad cut fails the build here, not on the user.
 ENVDIR="$PAYLOAD/miniforge3/envs/$CONDA_ENV_NAME"
 before="$(du -sh "$ENVDIR" 2>/dev/null | cut -f1)"
-rm -rf "$ENVDIR"/lib/libQt5* "$ENVDIR"/lib/libQt6* "$ENVDIR"/lib/qt5 \
-       "$ENVDIR"/plugins "$ENVDIR"/translations "$ENVDIR"/resources 2>/dev/null || true
-rm -rf "$ENVDIR"/lib/libLLVM* "$ENVDIR"/lib/libclang* 2>/dev/null || true
-rm -rf "$ENVDIR"/include "$ENVDIR"/lib/cmake "$ENVDIR"/lib/pkgconfig 2>/dev/null || true
+# unused heavy Qt modules (consumers, not deps of Qt5Widgets)
+for mod in WebEngine WebEngineCore WebEngineWidgets WebView WebKit WebKitWidgets \
+           3DCore 3DRender 3DInput 3DLogic 3DAnimation 3DExtras 3DQuick \
+           Quick Quick3D QuickWidgets QuickControls2 QuickTemplates2 QuickTest QuickShapes \
+           Qml QmlModels QmlWorkerScript Multimedia MultimediaWidgets MultimediaQuick \
+           Designer DesignerComponents Help Location Purchasing Sensors \
+           Charts DataVisualization RemoteObjects Scxml; do
+  rm -f "$ENVDIR"/lib/libQt5${mod}.*dylib 2>/dev/null || true
+done
+rm -rf "$ENVDIR"/translations "$ENVDIR"/resources "$ENVDIR"/libexec/QtWebEngineProcess* \
+       "$ENVDIR"/lib/qt5/libexec 2>/dev/null || true
+# LLVM/clang: only libclang links libLLVM, and that's a dev/tooling lib nothing
+# loads at runtime (cv2 links Qt5Widgets, not LLVM).
+rm -f "$ENVDIR"/lib/libLLVM*.dylib "$ENVDIR"/lib/libclang*.dylib 2>/dev/null || true
+# build-only dev files (safe)
+rm -rf "$ENVDIR"/include "$ENVDIR"/lib/cmake "$ENVDIR"/lib/pkgconfig \
+       "$ENVDIR"/share/man "$ENVDIR"/share/doc "$ENVDIR"/share/gtk-doc "$ENVDIR"/man 2>/dev/null || true
 find "$ENVDIR" \( -name '*.a' -o -name '*.prl' -o -name '*.la' \) -delete 2>/dev/null || true
-rm -rf "$ENVDIR"/share/man "$ENVDIR"/share/doc "$ENVDIR"/share/gtk-doc "$ENVDIR"/man 2>/dev/null || true
 log "Slimmed env: ${before:-?} -> $(du -sh "$ENVDIR" 2>/dev/null | cut -f1)"
 
 # macOS 15 (Sequoia) dyld rejects Mach-O with duplicate LC_RPATH entries, which
