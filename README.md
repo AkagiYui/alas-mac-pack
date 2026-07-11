@@ -47,14 +47,20 @@ structured to make that swap localized to `20-assemble.sh` + `config.ts`.
 The build is the "outside" approach — upstream is treated as read-only input and
 all adaptations live here:
 
+Nothing from upstream is stored here — the Electron shell (`webapp/`), the Alas
+repo, the python env, adb and the icon art are all pulled at build time from the
+upstream repo at its release tag. The repo holds only patches, config, scripts:
+
 ```
-overlay/                         # files copied over the vendored webapp
+overlay/                         # my patches, layered over the upstream webapp
   packages/main/src/config.ts    #  -> resolve payload from the .app, inject PATH
+  packages/main/src/index.ts     #  -> menu-bar (tray) icon sizing fix
+  packages/main/src/pyshell.ts   #  -> run python with cwd = repo root
   electron-builder.config.js     #  -> mac arm64 target, productName, icon
-config/deploy.mac.yaml           # deploy.yaml written into the payload (relative
-                                 #   ../ paths to bundled python/git/adb)
-scripts/                         # 4-step pipeline (see below)
-assets/icon.icns, background.png
+config/deploy.mac.yaml           # deploy.yaml written into the payload
+config/environment.yml           # conda env spec
+scripts/                         # build pipeline (see below)
+assets/background.png            # dmg background
 ```
 
 Bundle layout produced:
@@ -86,8 +92,8 @@ Sub-targets: `./build.sh shell | assemble | package`.
 
 ### Inputs (override via env)
 
-- `WEBAPP_SRC` — upstream Electron shell source. Vendored into this repo at
-  `webapp-src/` (default), so builds are hermetic.
+- `WEBAPP_SRC` — upstream Electron shell source. Default `build/webapp-upstream`,
+  extracted from the cloned repo by `05-build-payload.sh` (not stored in this repo).
 - `PAYLOAD_SRC` — a directory containing `app/ miniforge3/envs/alas/
   platform-tools/`. Default `build/payload`, produced by
   `scripts/05-build-payload.sh`. Locally you can point it at an existing

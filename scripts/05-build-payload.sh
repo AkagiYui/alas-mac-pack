@@ -25,15 +25,26 @@ log "Cloning $ALAS_REPO at release ref: $ref"
 git clone --depth 1 --branch "$ref" "$ALAS_REPO" "$PAYLOAD/app"
 [ -d "$PAYLOAD/app/.git" ] || die "cloned repo has no .git"
 log "Packaged commit: $(git -C "$PAYLOAD/app" rev-parse --short HEAD) (release $ref)"
-# Extract the app-icon source art from the upstream repo (used by 06-make-icons.sh),
-# before trimming webapp/ away.
+# The upstream repo already contains everything we need, so pull it from the
+# clone at build time instead of vendoring anything:
+#   - webapp/ (the Electron shell source) -> build/webapp-upstream (00-prepare
+#     copies it and the overlay/ patches are layered on top)
+#   - webapp/buildResources/icon.png (icon art) -> build/icon-source.png (06-make-icons)
+if [ -d "$PAYLOAD/app/webapp" ]; then
+  rm -rf "$BUILD_DIR/webapp-upstream"
+  cp -R "$PAYLOAD/app/webapp" "$BUILD_DIR/webapp-upstream"
+  rm -rf "$BUILD_DIR/webapp-upstream/node_modules" "$BUILD_DIR/webapp-upstream/dist"
+  log "Extracted Electron shell source -> $BUILD_DIR/webapp-upstream"
+else
+  die "upstream webapp/ not found in the clone — cannot build the Electron shell"
+fi
 if [ -f "$PAYLOAD/app/webapp/buildResources/icon.png" ]; then
   cp "$PAYLOAD/app/webapp/buildResources/icon.png" "$BUILD_DIR/icon-source.png"
   log "Extracted icon source -> $BUILD_DIR/icon-source.png"
 else
   warn "upstream icon.png not found; icon generation will fall back to repo assets"
 fi
-# Trim what the release build doesn't need.
+# Trim what the release build doesn't need from the payload copy.
 rm -rf "$PAYLOAD/app/.github" "$PAYLOAD/app/webapp" "$PAYLOAD/app/log"
 
 # --- 2. conda env -----------------------------------------------------------

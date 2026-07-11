@@ -1,9 +1,11 @@
 #!/bin/bash
 # Step 0: copy the upstream Electron shell into the build workdir and overlay
-# the small mac-specific patches (config.ts + electron-builder.config.js).
+# the small mac-specific patches. The upstream source is pulled from the cloned
+# repo by 05-build-payload.sh (WEBAPP_SRC=build/webapp-upstream) — nothing
+# upstream is stored in this repo.
 source "$(dirname "${BASH_SOURCE[0]}")/env.sh"
 
-[ -d "$WEBAPP_SRC" ] || die "WEBAPP_SRC not found: $WEBAPP_SRC"
+[ -d "$WEBAPP_SRC" ] || die "WEBAPP_SRC not found: $WEBAPP_SRC — run 05-build-payload.sh first (it extracts webapp/ from the upstream clone)"
 
 log "Copying webapp source -> $WEBAPP_BUILD"
 mkdir -p "$WEBAPP_BUILD"
@@ -11,12 +13,11 @@ rsync -a --delete \
   --exclude node_modules --exclude dist \
   "$WEBAPP_SRC"/ "$WEBAPP_BUILD"/
 
-log "Applying overlay (mac patches)"
+log "Applying overlay (mac patches: config.ts, index.ts, pyshell.ts, electron-builder.config.js)"
 # The overlay mirrors the webapp tree; anything under overlay/ replaces the
-# vendored file of the same path. Keeps patches robust (no diff fuzz).
+# upstream file of the same path. Keeps patches robust (no diff fuzz).
 rsync -a "$REPO_ROOT/overlay"/ "$WEBAPP_BUILD"/
 
-log "Ensuring icon.icns is present in buildResources"
-cp "$REPO_ROOT/assets/icon.icns" "$WEBAPP_BUILD/buildResources/icon.icns"
-
+# The app icon (buildResources/icon.icns) comes from upstream and is then
+# replaced by 06-make-icons.sh with the generated squircle icon.
 log "Step 0 done."

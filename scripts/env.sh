@@ -23,9 +23,11 @@ APP_BUNDLE="$SHELL_OUT/$APP_NAME.app"
 DIST_DIR="$REPO_ROOT/dist"                             # final .app + .dmg land here
 
 # --- Inputs -----------------------------------------------------------------
-# Upstream Electron shell source (the vite-electron-builder `webapp/`), vendored
-# into this repo for reproducible/hermetic builds (CI has no other copy).
-WEBAPP_SRC="${WEBAPP_SRC:-$REPO_ROOT/webapp-src}"
+# Upstream Electron shell source (the vite-electron-builder `webapp/`). Nothing
+# upstream is vendored: 05-build-payload.sh extracts it from the cloned repo at
+# the release tag into build/webapp-upstream, and 00-prepare-webapp.sh layers
+# the overlay/ patches on top.
+WEBAPP_SRC="${WEBAPP_SRC:-$BUILD_DIR/webapp-upstream}"
 
 # Payload: a directory that contains a working
 #   app/                       (AzurLaneAutoScript git repo)
