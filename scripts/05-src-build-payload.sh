@@ -60,7 +60,13 @@ log "Bundled python: $("$PY" --version 2>&1)"
 
 log "Installing SRC requirements with pip (this pulls wheels)"
 "$PY" -m pip install --upgrade pip >/dev/null
-"$PY" -m pip install --no-input --disable-pip-version-check -r "$PAYLOAD/app/requirements.txt"
+# av==10.0.0 has no macOS wheel (would build from source and need ffmpeg). Bump
+# to 12.3.0, which ships a prebuilt arm64 wheel with ffmpeg bundled. SRC only
+# uses av's stable CodecContext / InvalidDataError (scrcpy method). Done on a
+# temp copy so the bundled repo's requirements.txt is left untouched.
+SRC_AV_VERSION="${SRC_AV_VERSION:-12.3.0}"
+sed "s/^av==10\.0\.0/av==$SRC_AV_VERSION/" "$PAYLOAD/app/requirements.txt" > "$BUILD_DIR/requirements.txt"
+"$PY" -m pip install --no-input --disable-pip-version-check -r "$BUILD_DIR/requirements.txt"
 
 # --- 3. platform-tools (adb) ------------------------------------------------
 log "Downloading platform-tools (adb)"
