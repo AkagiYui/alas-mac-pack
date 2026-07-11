@@ -65,6 +65,9 @@ log "Bundled python: $("$PY" --version 2>&1)"
 
 log "Installing SRC requirements with pip (this pulls wheels)"
 "$PY" -m pip install --upgrade pip >/dev/null
+# python-build-standalone (install_only) ships pip but not setuptools; adbutils
+# imports pkg_resources (from setuptools). Pin <81 which still provides it.
+"$PY" -m pip install "setuptools<81" wheel >/dev/null
 # av==10.0.0 has no macOS wheel (would build from source and need ffmpeg). Bump
 # to 12.3.0, which ships a prebuilt arm64 wheel with ffmpeg bundled. SRC only
 # uses av's stable CodecContext / InvalidDataError (scrcpy method). Done on a
