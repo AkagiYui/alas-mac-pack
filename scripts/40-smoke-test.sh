@@ -17,15 +17,15 @@ APP="$DIST_DIR/$APP_NAME.app"
 [ -d "$APP" ] || die "No .app to test. Run the build first."
 
 PAYLOAD="$APP/Contents/Resources/payload"
-PY="$PAYLOAD/miniforge3/envs/alas/bin/python"
+PY="$PAYLOAD/$PY_REL"
 PORT="$(grep -E '^\s*WebuiPort:' "$PAYLOAD/app/config/deploy.yaml" | grep -oE '[0-9]+' | head -1)"
-PORT="${PORT:-22267}"
+PORT="${PORT:-$WEBUI_PORT}"
 [ -x "$PY" ] || die "bundled python missing: $PY"
 
 # --- 1. native imports ------------------------------------------------------
-log "[1/2] Native extension imports (numpy / cv2 / mxnet) from the bundled python"
-"$PY" -c "import numpy, cv2, mxnet; print(f'  numpy {numpy.__version__}, cv2 {cv2.__version__}, mxnet {mxnet.__version__} OK')" \
-  || die "native import failed — the scheduler would crash (see dyld error above)"
+log "[1/2] Native extension imports ($SMOKE_IMPORTS) from the bundled python"
+"$PY" -c "import ${SMOKE_IMPORTS// /}; print('  native imports OK: ${SMOKE_IMPORTS}')" \
+  || die "native import failed — the scheduler would crash (see error above)"
 
 # --- 2. launch the real Electron app and drive a session --------------------
 log "[2/2] Launching the packaged Electron app and driving a pywebio session"

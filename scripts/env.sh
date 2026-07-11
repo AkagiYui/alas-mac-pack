@@ -1,54 +1,79 @@
 #!/bin/bash
 # Shared configuration for the alas-mac-pack build pipeline.
 # Override any of these by exporting them before running build.sh.
+#
+# Two build profiles, selected with PROFILE=alas (default) or PROFILE=src:
+#   alas -> AzurLaneAutoScript, conda env (config/environment.yml)
+#   src  -> StarRailCopilot,    python-build-standalone + pip (requirements.txt)
 
 set -euo pipefail
 
 # Repo root (this file lives in <repo>/scripts/)
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-
-# Where the big source assets live. Defaults to the parent `lme` working copy.
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/.." && pwd)"
 LME_ROOT="${LME_ROOT:-$(cd "$REPO_ROOT/.." && pwd)}"
 
-# --- Product ----------------------------------------------------------------
-APP_NAME="${APP_NAME:-AzurLaneAutoScript}"
-APP_VERSION="${APP_VERSION:-}"      # empty -> electron-builder date-based version
+PROFILE="${PROFILE:-alas}"
 ARCH="arm64"
 
-# --- Work dirs --------------------------------------------------------------
-BUILD_DIR="$REPO_ROOT/build"
+# --- Per-profile settings ---------------------------------------------------
+case "$PROFILE" in
+  alas)
+    APP_NAME_DEFAULT="AzurLaneAutoScript"
+    UPSTREAM_DEFAULT="LmeSzinc/AzurLaneAutoScript"
+    OVERLAY_DIR="$REPO_ROOT/overlay"
+    DEPLOY_TEMPLATE="$REPO_ROOT/config/deploy.mac.yaml"
+    BUILDER_CONFIG="electron-builder.config.js"
+    WEBUI_PORT_DEFAULT=22267
+    PY_REL="miniforge3/envs/alas/bin/python"          # python inside the payload
+    SMOKE_IMPORTS="numpy, cv2, mxnet"
+    PAYLOAD_BUILDER="05-build-payload.sh"
+    ;;
+  src)
+    APP_NAME_DEFAULT="StarRailCopilot"
+    UPSTREAM_DEFAULT="LmeSzinc/StarRailCopilot"
+    OVERLAY_DIR="$REPO_ROOT/overlay-src"
+    DEPLOY_TEMPLATE="$REPO_ROOT/config/deploy-src.mac.yaml"
+    BUILDER_CONFIG=".electron-builder.config.js"
+    WEBUI_PORT_DEFAULT=22367
+    PY_REL="python/bin/python3"
+    SMOKE_IMPORTS="numpy, cv2, onnxruntime"
+    PAYLOAD_BUILDER="05-src-build-payload.sh"
+    ;;
+  *) echo "unknown PROFILE: $PROFILE (use alas|src)" >&2; exit 1 ;;
+esac
+
+# --- Product ----------------------------------------------------------------
+APP_NAME="${APP_NAME:-$APP_NAME_DEFAULT}"
+APP_VERSION="${APP_VERSION:-}"      # empty -> electron-builder date-based version
+WEBUI_PORT="${WEBUI_PORT:-$WEBUI_PORT_DEFAULT}"
+
+# --- Work dirs (per-profile so alas/src don't clobber each other) -----------
+BUILD_DIR="$REPO_ROOT/build/$PROFILE"
 WEBAPP_BUILD="$BUILD_DIR/webapp"                       # patched copy we compile
 SHELL_OUT="$WEBAPP_BUILD/dist/mac-$ARCH"               # electron-builder --dir output
 APP_BUNDLE="$SHELL_OUT/$APP_NAME.app"
 DIST_DIR="$REPO_ROOT/dist"                             # final .app + .dmg land here
 
 # --- Inputs -----------------------------------------------------------------
-# Upstream Electron shell source (the vite-electron-builder `webapp/`). Nothing
-# upstream is vendored: 05-build-payload.sh extracts it from the cloned repo at
-# the release tag into build/webapp-upstream, and 00-prepare-webapp.sh layers
-# the overlay/ patches on top.
+# Nothing upstream is vendored: 05*-build-payload.sh extracts webapp/ from the
+# cloned repo into build/<profile>/webapp-upstream and 00-prepare layers OVERLAY_DIR.
 WEBAPP_SRC="${WEBAPP_SRC:-$BUILD_DIR/webapp-upstream}"
-
-# Payload: a directory that contains a working
-#   app/                       (AzurLaneAutoScript git repo)
-#   miniforge3/envs/alas/      (conda env: python + git)
-#   platform-tools/adb
-# Build it fresh with scripts/05-build-payload.sh (clones the repo, creates the
-# conda env from config/environment.yml, downloads platform-tools) — this is
-# what CI does. Locally you can instead point PAYLOAD_SRC at an existing
-# Contents/Resources to reuse a prebuilt env.
 PAYLOAD_SRC="${PAYLOAD_SRC:-$BUILD_DIR/payload}"
 
-# Sources used by 05-build-payload.sh
-ALAS_UPSTREAM="${ALAS_UPSTREAM:-LmeSzinc/AzurLaneAutoScript}"   # owner/repo (for gh)
-ALAS_REPO="${ALAS_REPO:-https://github.com/$ALAS_UPSTREAM}"
-# Git ref to package. Empty => resolve the LATEST RELEASE's tag (not master HEAD),
-# so the app is built from the same commit as upstream's newest release.
-ALAS_REF="${ALAS_REF:-}"
+# Upstream repo to package (owner/repo). Ref empty => latest RELEASE tag.
+UPSTREAM="${UPSTREAM:-$UPSTREAM_DEFAULT}"
+UPSTREAM_URL="${UPSTREAM_URL:-https://github.com/$UPSTREAM}"
+UPSTREAM_REF="${UPSTREAM_REF:-}"
+# Back-compat aliases used by the alas payload builder.
+ALAS_UPSTREAM="$UPSTREAM"; ALAS_REPO="$UPSTREAM_URL"; ALAS_REF="$UPSTREAM_REF"
+
+# alas (conda) settings
 CONDA_ENV_NAME="${CONDA_ENV_NAME:-alas}"
-# Absolute path to the created conda env (contains bin/python). Auto-detected
-# from `conda` if left empty.
 CONDA_ENV_PREFIX="${CONDA_ENV_PREFIX:-}"
+
+# src (python-build-standalone) settings — resolved by 05-src-build-payload.sh
+PBS_PY_VERSION="${PBS_PY_VERSION:-3.11}"     # cpython minor to bundle
+
 PLATFORM_TOOLS_URL="${PLATFORM_TOOLS_URL:-https://dl.google.com/android/repository/platform-tools-latest-darwin.zip}"
 
 log()  { printf '\033[1;34m==>\033[0m %s\n' "$*"; }

@@ -1,7 +1,22 @@
 # alas-mac-pack
 
-Package **AzurLaneAutoScript** (Alas) as a *normal* macOS Electron app for Apple
-Silicon — instead of the Platypus "terminal window" wrapper.
+Package **AzurLaneAutoScript** (Alas) and **StarRailCopilot** (SRC) as *normal*
+macOS Electron apps for Apple Silicon — instead of the Platypus "terminal window"
+wrapper.
+
+Two build **profiles** share one pipeline (`PROFILE=alas` default, `PROFILE=src`):
+
+| | alas | src |
+| --- | --- | --- |
+| upstream | LmeSzinc/AzurLaneAutoScript | LmeSzinc/StarRailCopilot |
+| python | conda env (`config/environment.yml`) | python-build-standalone + pip |
+| overlay | `overlay/` | `overlay-src/` |
+| workflow | `.github/workflows/build.yml` | `.github/workflows/build-src.yml` |
+| artifact | ~810 MB | ~200 MB |
+
+Per-profile bits: `overlay-<p>/`, `config/deploy[-src].mac.yaml`,
+`scripts/05[-src]-build-payload.sh`; everything else is shared and selected by
+`scripts/env.sh`.
 
 Upstream already ships a proper Electron desktop shell (`webapp/`, a
 vite-electron-builder Vue3 app) but only builds it for Windows. This repo reuses
@@ -60,8 +75,11 @@ overlay/                         # my patches, layered over the upstream webapp
 config/deploy.mac.yaml           # deploy.yaml written into the payload
 config/environment.yml           # conda env spec
 scripts/                         # build pipeline (see below)
-assets/background.png            # dmg background
 ```
+
+The app icon, menu-bar icon, and the DMG background (with the
+`xattr -c /Applications/<App>.app` un-quarantine instruction) are all generated
+per-app at build time by `06-make-icons.sh` — nothing image-related is stored.
 
 Bundle layout produced:
 

@@ -96,7 +96,34 @@ log "Rendering tray icon -> tray.png (@1x) + tray@2x.png"
 rsvg-convert -w 44 -h 44 "$WORK/tray.svg" -o "$WORK/tray@2x.png"
 rsvg-convert -w 22 -h 22 "$WORK/tray.svg" -o "$WORK/tray.png"
 
+# --- dmg background (with the xattr un-quarantine instruction) ---------------
+log "Rendering dmg background for $APP_NAME"
+APP_NAME="$APP_NAME" python3 - "$WORK" <<'PYEOF'
+import os, sys
+work = sys.argv[1]
+app = os.environ["APP_NAME"]
+svg = f'''<svg width="800" height="400" viewBox="0 0 800 400" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f6f7fb"/><stop offset="1" stop-color="#e9ebf2"/></linearGradient>
+    <linearGradient id="cmd" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2b2d38"/><stop offset="1" stop-color="#1e2029"/></linearGradient>
+  </defs>
+  <rect width="800" height="400" fill="url(#bg)"/>
+  <text x="400" y="56" text-anchor="middle" font-family="PingFang SC, Helvetica, sans-serif" font-size="26" font-weight="600" fill="#3a3d49">安装 {app}</text>
+  <text x="400" y="84" text-anchor="middle" font-family="PingFang SC, Helvetica, sans-serif" font-size="14" fill="#8a8f9c">① 将左侧图标拖到右侧 Applications 文件夹</text>
+  <g stroke="#b7bccb" stroke-width="7" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <line x1="315" y1="190" x2="475" y2="190"/><polyline points="452,170 485,190 452,210"/>
+  </g>
+  <rect x="120" y="292" width="560" height="76" rx="16" fill="url(#cmd)"/>
+  <circle cx="142" cy="312" r="5" fill="#ff5f57"/><circle cx="160" cy="312" r="5" fill="#febc2e"/><circle cx="178" cy="312" r="5" fill="#28c840"/>
+  <text x="400" y="316" text-anchor="middle" font-family="PingFang SC, Helvetica, sans-serif" font-size="12" fill="#c9ccd6">② 首次打开前，在「终端」执行以下命令解除限制</text>
+  <text x="400" y="350" text-anchor="middle" font-family="Menlo, monospace" font-size="16" fill="#5be07a">xattr -c /Applications/{app}.app</text>
+</svg>'''
+open(os.path.join(work, "dmg-bg.svg"), "w").write(svg)
+PYEOF
+rsvg-convert -w 1600 -h 800 "$WORK/dmg-bg.svg" -o "$WORK/dmg-background.png"   # 2x for Retina
+
 # --- install into the build tree --------------------------------------------
+cp "$WORK/dmg-background.png" "$BUILD_DIR/dmg-background.png"
 cp "$WORK/icon.icns" "$WEBAPP_BUILD/buildResources/icon.icns"
 mkdir -p "$WEBAPP_BUILD/packages/main/public"
 cp "$WORK/tray.png"    "$WEBAPP_BUILD/packages/main/public/tray.png"

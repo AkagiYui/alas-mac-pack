@@ -32,7 +32,7 @@ log "Building DMG -> $DMG_OUT"
 rm -f "$DMG_OUT" "$DIST_DIR"/rw.*.dmg
 
 BG_ARG=()
-[ -f "$REPO_ROOT/assets/background.png" ] && BG_ARG=(--background "$REPO_ROOT/assets/background.png")
+[ -f "$BUILD_DIR/dmg-background.png" ] && BG_ARG=(--background "$BUILD_DIR/dmg-background.png")
 
 # Use the generated app icon (06-make-icons.sh) as the volume icon when present.
 VOLICON_ARG=()

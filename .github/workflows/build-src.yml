@@ -1,0 +1,67 @@
+name: build-macos-src
+
+# Builds the StarRailCopilot macOS (Apple Silicon) Electron package and uploads
+# the .dmg as a workflow artifact.
+#
+# No conda: SRC's deps are plain pip wheels. The bundled python is a
+# python-build-standalone (astral-sh) cpython arm64, pip-installed with the SRC
+# requirements. The repo is cloned at its LATEST RELEASE commit. Runs on macos-15
+# so the smoke test validates on the same OS users have.
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'src-v*'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-src-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: macos-15           # Apple Silicon (arm64), macOS 15
+    env:
+      PROFILE: src
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.node-version'
+
+      - name: Install build tools
+        run: brew install create-dmg librsvg
+
+      - name: Build payload (clone repo + python-build-standalone + pip + adb)
+        run: bash scripts/05-src-build-payload.sh
+
+      - name: Build Electron shell
+        run: |
+          bash scripts/00-prepare-webapp.sh
+          bash scripts/06-make-icons.sh
+          bash scripts/10-build-shell.sh
+
+      - name: Assemble payload into .app
+        run: bash scripts/20-assemble.sh
+
+      - name: Package (ad-hoc sign + dmg)
+        run: bash scripts/30-package.sh
+
+      - name: Headless smoke test (python + webui)
+        run: bash scripts/40-smoke-test.sh
+
+      - name: Upload DMG artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: StarRailCopilot-mac-arm64-dmg
+          path: dist/*.dmg
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14

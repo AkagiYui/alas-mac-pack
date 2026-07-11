@@ -13,10 +13,10 @@ rsync -a --delete \
   --exclude node_modules --exclude dist \
   "$WEBAPP_SRC"/ "$WEBAPP_BUILD"/
 
-log "Applying overlay (mac patches: config.ts, index.ts, pyshell.ts, electron-builder.config.js)"
-# The overlay mirrors the webapp tree; anything under overlay/ replaces the
+log "Applying overlay ($PROFILE): $OVERLAY_DIR"
+# The overlay mirrors the webapp tree; anything under OVERLAY_DIR replaces the
 # upstream file of the same path. Keeps patches robust (no diff fuzz).
-rsync -a "$REPO_ROOT/overlay"/ "$WEBAPP_BUILD"/
+rsync -a "$OVERLAY_DIR"/ "$WEBAPP_BUILD"/
 
 # The app icon (buildResources/icon.icns) comes from upstream and is then
 # replaced by 06-make-icons.sh with the generated squircle icon.

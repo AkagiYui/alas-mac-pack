@@ -17,9 +17,20 @@ fi
 
 cd "$WEBAPP_BUILD"
 
+if [ "$PROFILE" = src ]; then
+  # SRC's package-lock is stale (missing pinia), so a plain install pulls the
+  # latest pinia (2.1+, needs vue 3.3's hasInjectionContext) against the pinned
+  # vue 3.2.47 -> build fails. Pin pinia to the last vue-3.2-compatible release
+  # via an npm override.
+  log "Pinning pinia to 2.0.36 (vue 3.2 compatibility)"
+  node -e "const fs=require('fs'),p=require('./package.json');for(const s of ['dependencies','devDependencies'])if(p[s]&&p[s].pinia)p[s].pinia='2.0.36';fs.writeFileSync('package.json',JSON.stringify(p,null,2))"
+fi
+
 if [ ! -d node_modules ]; then
   log "Installing npm dependencies (downloads Electron, takes a while)"
-  npm install --no-audit --no-fund
+  # --legacy-peer-deps: the SRC webapp has transitive peer conflicts
+  # (vue 3.2 vs a peer wanting vue 3.5); harmless for the alas webapp too.
+  npm install --no-audit --no-fund --legacy-peer-deps
 else
   log "node_modules present, skipping npm install"
 fi
@@ -27,9 +38,9 @@ fi
 log "Bundling main/preload/renderer (vite, production)"
 MODE=production npm run build
 
-log "Packaging .app shell (electron-builder --dir, $ARCH)"
+log "Packaging .app shell (electron-builder --dir, $ARCH, config: $BUILDER_CONFIG)"
 [ -n "$APP_VERSION" ] && export VITE_APP_VERSION="$APP_VERSION"
-npx electron-builder build --config electron-builder.config.js --dir --arm64
+npx electron-builder build --config "$BUILDER_CONFIG" --dir --arm64
 
 [ -d "$APP_BUNDLE" ] || die "Expected app bundle not found: $APP_BUNDLE"
 log "Step 1 done -> $APP_BUNDLE"
