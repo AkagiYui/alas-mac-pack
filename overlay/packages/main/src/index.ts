@@ -194,17 +194,10 @@ function createTray() {
     {label: 'Exit', click: quitApp},
   ]);
   tray.setToolTip('Alas');
+  // On macOS, setContextMenu makes a left- or right-click on the tray icon open
+  // the menu. Intentionally no 'click' handler: clicking the icon should ONLY
+  // open the menu, not toggle the window (use the "Show"/"Hide" items for that).
   tray.setContextMenu(contextMenu);
-  tray.on('click', () => {
-    if (hasWindow() && mainWindow!.isVisible()) {
-      hideToTray();
-    } else {
-      showWindow();
-    }
-  });
-  tray.on('right-click', () => {
-    tray?.popUpContextMenu(contextMenu);
-  });
 }
 
 
