@@ -71,8 +71,10 @@ ALAS_UPSTREAM="$UPSTREAM"; ALAS_REPO="$UPSTREAM_URL"; ALAS_REF="$UPSTREAM_REF"
 CONDA_ENV_NAME="${CONDA_ENV_NAME:-alas}"
 CONDA_ENV_PREFIX="${CONDA_ENV_PREFIX:-}"
 
-# src (python-build-standalone) settings — resolved by 05-src-build-payload.sh
-PBS_PY_VERSION="${PBS_PY_VERSION:-3.11}"     # cpython minor to bundle
+# src (python-build-standalone) settings — resolved by 05-src-build-payload.sh.
+# SRC's requirements are pip-compiled for Python 3.10, and the pinned
+# onnxruntime==1.14.1 only ships arm64 wheels up to cp310 — so bundle 3.10.
+PBS_PY_VERSION="${PBS_PY_VERSION:-3.10}"     # cpython minor to bundle
 
 PLATFORM_TOOLS_URL="${PLATFORM_TOOLS_URL:-https://dl.google.com/android/repository/platform-tools-latest-darwin.zip}"
 
