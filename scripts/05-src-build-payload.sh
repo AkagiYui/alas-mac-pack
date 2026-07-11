@@ -25,6 +25,11 @@ log "Cloning $UPSTREAM_URL at release ref: $ref"
 git clone --depth 1 --branch "$ref" "$UPSTREAM_URL" "$PAYLOAD/app"
 [ -d "$PAYLOAD/app/.git" ] || die "cloned repo has no .git"
 log "Packaged commit: $(git -C "$PAYLOAD/app" rev-parse --short HEAD) (release $ref)"
+# A --branch <tag> clone is detached with no origin/master ref, so the in-app
+# git update (`git reset --hard origin/master`) would fail. Configure the remote
+# fetch refspec and seed origin/master so on-demand updates work.
+git -C "$PAYLOAD/app" config remote.origin.fetch "+refs/heads/master:refs/remotes/origin/master"
+git -C "$PAYLOAD/app" fetch --depth 1 origin master 2>/dev/null || warn "could not seed origin/master"
 
 # Pull the Electron shell + icon art out of the clone before trimming.
 if [ -d "$PAYLOAD/app/webapp" ]; then

@@ -16,7 +16,10 @@ Deploy:
     GitExecutable: git
     GitProxy: null
     SSLVerify: true
-    AutoUpdate: true
+    # Off so the app stays at the packaged RELEASE commit instead of auto-jumping
+    # to master on every launch. Updating still works on demand from the webui
+    # (05-src-build-payload sets up the origin/master ref).
+    AutoUpdate: false
     KeepLocalChanges: false
   Python:
     PythonExecutable: ../python/bin/python3
