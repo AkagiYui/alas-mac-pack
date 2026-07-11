@@ -42,10 +42,12 @@ rm -rf "$PAYLOAD/app/.github" "$PAYLOAD/app/webapp" "$PAYLOAD/app/log"
 
 # --- 2. python-build-standalone + pip deps ----------------------------------
 log "Resolving python-build-standalone (cpython-$PBS_PY_VERSION arm64, install_only)"
+# Note: browser_download_url URL-encodes the '+' before the build date as %2B,
+# so match with .* between the version and the arch triple.
 asset_url="$(gh api repos/astral-sh/python-build-standalone/releases/latest \
-  --jq '.assets[].browser_download_url' \
-  | grep -E "cpython-${PBS_PY_VERSION//./\\.}\.[0-9]+\+[0-9]+-aarch64-apple-darwin-install_only\.tar\.gz$" \
-  | head -1)"
+  --jq '.assets[].browser_download_url' 2>/dev/null \
+  | grep -E "cpython-${PBS_PY_VERSION//./\\.}\.[0-9]+.*-aarch64-apple-darwin-install_only\.tar\.gz$" \
+  | sort -V | tail -1 || true)"
 [ -n "$asset_url" ] || die "no python-build-standalone $PBS_PY_VERSION arm64 install_only asset found"
 log "Downloading $asset_url"
 curl -fsSL "$asset_url" -o "$BUILD_DIR/python.tar.gz"
