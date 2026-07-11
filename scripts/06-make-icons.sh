@@ -120,7 +120,9 @@ svg = f'''<svg width="800" height="400" viewBox="0 0 800 400" xmlns="http://www.
 </svg>'''
 open(os.path.join(work, "dmg-bg.svg"), "w").write(svg)
 PYEOF
-rsvg-convert -w 1600 -h 800 "$WORK/dmg-bg.svg" -o "$WORK/dmg-background.png"   # 2x for Retina
+# Render at the create-dmg window size (800x400); a 2x render makes create-dmg
+# display the background doubled.
+rsvg-convert -w 800 -h 400 "$WORK/dmg-bg.svg" -o "$WORK/dmg-background.png"
 
 # --- install into the build tree --------------------------------------------
 cp "$WORK/dmg-background.png" "$BUILD_DIR/dmg-background.png"

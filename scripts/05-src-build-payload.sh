@@ -86,15 +86,38 @@ test -x "$PAYLOAD/platform-tools/adb" || die "adb not found after extract"
 
 # --- 4. slim + verify -------------------------------------------------------
 log "Slimming the python env"
-find "$PAYLOAD/python" -name '__pycache__' -type d -prune -exec rm -rf {} + 2>/dev/null || true
-rm -rf "$PAYLOAD/python/lib/python${PBS_PY_VERSION}"*/test \
-       "$PAYLOAD/python/lib/python${PBS_PY_VERSION}"*/site-packages/pip/_vendor/*/tests 2>/dev/null || true
+STD="$PAYLOAD/python/lib/python${PBS_PY_VERSION}"
+SP="$STD/site-packages"
+before="$(du -sh "$PAYLOAD/python" 2>/dev/null | cut -f1)"
 
-log "Verifying imports (numpy / cv2 / onnxruntime / av)"
+# pynput + pyobjc: pynput is imported only by dev_tools/screenshot.py (a dev
+# tool, not the bot runtime) and drags in the whole pyobjc stack (~60MB).
+"$PY" -m pip freeze 2>/dev/null | grep -iE "^(pynput|pyobjc)" | cut -d= -f1 \
+  | xargs -r "$PY" -m pip uninstall -y >/dev/null 2>&1 || true
+
+# __pycache__ + package test suites (numpy/scipy/sympy/... never import their tests)
+find "$PAYLOAD/python" -name '__pycache__' -type d -prune -exec rm -rf {} + 2>/dev/null || true
+find "$SP" -type d \( -name tests -o -name test \) -prune -exec rm -rf {} + 2>/dev/null || true
+
+# stdlib we never use in a headless bot (no Tk/GUI, no dev tooling)
+rm -rf "$STD"/test "$STD"/idlelib "$STD"/tkinter "$STD"/turtledemo "$STD"/lib2to3 \
+       "$STD"/ensurepip "$STD"/lib-dynload/_tkinter*.so 2>/dev/null || true
+rm -rf "$PAYLOAD/python/lib"/tcl8* "$PAYLOAD/python/lib"/tk8* "$PAYLOAD/python/lib"/Tk* \
+       "$PAYLOAD/python/lib"/itcl* "$PAYLOAD/python/lib"/libtcl*.dylib "$PAYLOAD/python/lib"/libtk*.dylib 2>/dev/null || true
+
+# platform-tools: keep only adb (+ its libs); drop fastboot & flashing tools
+for f in fastboot sqlite3 mke2fs mke2fs.conf etc1tool make_f2fs make_f2fs_casefold \
+         dmtracedump hprof-conv; do
+  rm -rf "$PAYLOAD/platform-tools/$f" 2>/dev/null || true
+done
+log "Slimmed python: ${before:-?} -> $(du -sh "$PAYLOAD/python" 2>/dev/null | cut -f1)"
+
+log "Verifying imports (numpy / cv2 / onnxruntime / av / scipy / adbutils)"
 "$PY" - <<'PYEOF'
-import numpy, cv2, onnxruntime, av
+import numpy, cv2, onnxruntime, av, scipy, adbutils
 from PIL import Image
-print(f"  numpy {numpy.__version__}, cv2 {cv2.__version__}, onnxruntime {onnxruntime.__version__} — OK")
+print(f"  numpy {numpy.__version__}, cv2 {cv2.__version__}, "
+      f"onnxruntime {onnxruntime.__version__}, scipy {scipy.__version__} — OK")
 PYEOF
 
 log "SRC payload built:"
