@@ -51,6 +51,20 @@ cp -RL "$prefix" "$PAYLOAD/miniforge3/envs/$CONDA_ENV_NAME"
 find "$PAYLOAD/miniforge3" -name '__pycache__' -type d -prune -exec rm -rf {} + 2>/dev/null || true
 rm -rf "$PAYLOAD/miniforge3/envs/$CONDA_ENV_NAME/pkgs" 2>/dev/null || true
 
+# Slim the env: remove things alas never loads at runtime. Verified safe — cv2
+# links neither Qt nor LLVM and there are no PyQt/PySide bindings, so the whole
+# Qt stack (WebEngine/WebKit/…) and LLVM/clang are dead weight; dev files
+# (headers, static libs, cmake/pkgconfig, docs) are build-only. Saves ~400MB.
+ENVDIR="$PAYLOAD/miniforge3/envs/$CONDA_ENV_NAME"
+before="$(du -sh "$ENVDIR" 2>/dev/null | cut -f1)"
+rm -rf "$ENVDIR"/lib/libQt5* "$ENVDIR"/lib/libQt6* "$ENVDIR"/lib/qt5 \
+       "$ENVDIR"/plugins "$ENVDIR"/translations "$ENVDIR"/resources 2>/dev/null || true
+rm -rf "$ENVDIR"/lib/libLLVM* "$ENVDIR"/lib/libclang* 2>/dev/null || true
+rm -rf "$ENVDIR"/include "$ENVDIR"/lib/cmake "$ENVDIR"/lib/pkgconfig 2>/dev/null || true
+find "$ENVDIR" \( -name '*.a' -o -name '*.prl' -o -name '*.la' \) -delete 2>/dev/null || true
+rm -rf "$ENVDIR"/share/man "$ENVDIR"/share/doc "$ENVDIR"/share/gtk-doc "$ENVDIR"/man 2>/dev/null || true
+log "Slimmed env: ${before:-?} -> $(du -sh "$ENVDIR" 2>/dev/null | cut -f1)"
+
 # macOS 15 (Sequoia) dyld rejects Mach-O with duplicate LC_RPATH entries, which
 # several conda arm64 libs (libopenblas, libgfortran, numpy .so, ...) ship. This
 # breaks `import numpy` at runtime (not caught on macos-14 CI). De-duplicate and
@@ -58,11 +72,13 @@ rm -rf "$PAYLOAD/miniforge3/envs/$CONDA_ENV_NAME/pkgs" 2>/dev/null || true
 log "De-duplicating LC_RPATH in the env (macOS 15 compatibility)"
 python3 "$REPO_ROOT/scripts/fix-env-rpaths.py" "$PAYLOAD/miniforge3/envs/$CONDA_ENV_NAME"
 
-log "Verifying the env imports its native extensions"
+log "Verifying the env imports its native extensions (after slimming)"
 "$PAYLOAD/miniforge3/envs/$CONDA_ENV_NAME/bin/python" - <<'PYEOF'
-import numpy, cv2, mxnet
+import numpy, cv2, mxnet, scipy, av, lxml
 from PIL import Image
-print(f"  numpy {numpy.__version__}, cv2 {cv2.__version__}, mxnet {mxnet.__version__} — OK")
+import matplotlib; matplotlib.use("Agg"); import matplotlib.pyplot as _
+print(f"  numpy {numpy.__version__}, cv2 {cv2.__version__}, mxnet {mxnet.__version__}, "
+      f"scipy {scipy.__version__}, mpl {matplotlib.get_backend()} — OK")
 PYEOF
 
 # --- 3. platform-tools (adb) ------------------------------------------------

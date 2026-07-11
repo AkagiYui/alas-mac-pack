@@ -34,10 +34,18 @@ rm -f "$DMG_OUT" "$DIST_DIR"/rw.*.dmg
 BG_ARG=()
 [ -f "$REPO_ROOT/assets/background.png" ] && BG_ARG=(--background "$REPO_ROOT/assets/background.png")
 
+# Use the generated app icon as the volume icon when available.
+VOLICON="$WEBAPP_BUILD/buildResources/icon.icns"
+[ -f "$VOLICON" ] || VOLICON="$REPO_ROOT/assets/icon.icns"
+
+# ULMO = LZMA-compressed dmg (much smaller than the create-dmg default UDZO/zlib),
+# on an APFS filesystem — same as the original release_dmg.sh.
 create-dmg \
   --volname "$APP_NAME" \
-  --volicon "$REPO_ROOT/assets/icon.icns" \
+  --volicon "$VOLICON" \
   "${BG_ARG[@]}" \
+  --format ULMO \
+  --filesystem APFS \
   --window-pos 200 120 \
   --window-size 800 400 \
   --icon-size 100 \
