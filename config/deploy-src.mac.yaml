@@ -16,10 +16,11 @@ Deploy:
     GitExecutable: git
     GitProxy: null
     SSLVerify: true
-    # Off so the app stays at the packaged RELEASE commit instead of auto-jumping
-    # to master on every launch. Updating still works on demand from the webui
-    # (05-src-build-payload sets up the origin/master ref).
-    AutoUpdate: false
+    # On: installer.py git-updates to master at startup, and the webui updater
+    # keeps it current thereafter (05-src-build-payload seeds the origin/master
+    # ref so `git reset --hard origin/master` works). The release commit is just
+    # the consistent starting point for a fresh download.
+    AutoUpdate: true
     KeepLocalChanges: false
   Python:
     PythonExecutable: ../python/bin/python3
@@ -31,8 +32,11 @@ Deploy:
   Adb:
     AdbExecutable: ../platform-tools/adb
     ReplaceAdb: false
-    AutoConnect: true
-    InstallUiautomator2: true
+    # Off: the installer's AutoConnect runs Windows-only emulator detection
+    # (deploy/Windows/emulator.py) which crashes on macOS. Device connection at
+    # runtime is configured per-instance in the alas config, not here.
+    AutoConnect: false
+    InstallUiautomator2: false
   Ocr:
     UseOcrServer: false
     StartOcrServer: false

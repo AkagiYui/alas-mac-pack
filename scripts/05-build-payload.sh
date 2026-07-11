@@ -25,6 +25,11 @@ log "Cloning $ALAS_REPO at release ref: $ref"
 git clone --depth 1 --branch "$ref" "$ALAS_REPO" "$PAYLOAD/app"
 [ -d "$PAYLOAD/app/.git" ] || die "cloned repo has no .git"
 log "Packaged commit: $(git -C "$PAYLOAD/app" rev-parse --short HEAD) (release $ref)"
+# A --branch <tag> clone is detached with no origin/master ref, so the in-app
+# auto-update (`git reset --hard origin/master`) would fail. Configure the remote
+# fetch refspec and seed origin/master so auto-update works.
+git -C "$PAYLOAD/app" config remote.origin.fetch "+refs/heads/master:refs/remotes/origin/master"
+git -C "$PAYLOAD/app" fetch --depth 1 origin master 2>/dev/null || warn "could not seed origin/master"
 # The upstream repo already contains everything we need, so pull it from the
 # clone at build time instead of vendoring anything:
 #   - webapp/ (the Electron shell source) -> build/webapp-upstream (00-prepare
