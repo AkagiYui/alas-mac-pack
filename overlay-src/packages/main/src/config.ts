@@ -83,6 +83,7 @@ export const pythonPath = path.isAbsolute(PythonExecutable)
 export const installerPath = ALAS_INSTR_FILE;
 export const installerArgs = import.meta.env.DEV ? ['--print-test'] : [];
 export const webuiUrl = `http://127.0.0.1:${WebuiPort}`;
+export const webuiPort = WebuiPort;
 export const webuiPath = 'gui.py';
 export const webuiArgs = ['--port', WebuiPort, '--electron'];
 export const dpiScaling =
