@@ -60,7 +60,7 @@ jobs:
       - name: Upload DMG artifact
         uses: actions/upload-artifact@v4
         with:
-          name: StarRailCopilot-mac-arm64-dmg
+          name: StarRailCopilot-mac-arm64-${{ env.UPSTREAM_COMMIT }}
           path: dist/*.dmg
           if-no-files-found: error
           compression-level: 0

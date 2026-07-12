@@ -31,8 +31,15 @@ log "Signature summary (electron-builder shell, unsealed bundle):"
 codesign -dv "$FINAL_APP" 2>&1 | sed 's/^/    /' || true
 
 # --- DMG --------------------------------------------------------------------
-VER="${APP_VERSION:-$(date +%Y.%m.%d)}"
+# Name the DMG by the packaged upstream commit (short hash) rather than a build
+# date — it pins exactly which upstream revision shipped. The payload repo still
+# carries its .git here (05-*-build-payload cloned it, 20-assemble copied it in).
+UPSTREAM_COMMIT="$(git -C "$PAYLOAD_SRC/app" rev-parse --short HEAD 2>/dev/null || true)"
+[ -n "$UPSTREAM_COMMIT" ] || die "could not resolve packaged upstream commit from $PAYLOAD_SRC/app"
+VER="$UPSTREAM_COMMIT"
 DMG_OUT="$DIST_DIR/${APP_NAME}-mac-${ARCH}-${VER}.dmg"
+# Expose the commit so the workflow can name the uploaded artifact with it too.
+[ -n "${GITHUB_ENV:-}" ] && echo "UPSTREAM_COMMIT=$UPSTREAM_COMMIT" >> "$GITHUB_ENV"
 log "Building DMG -> $DMG_OUT"
 rm -f "$DMG_OUT" "$DIST_DIR"/rw.*.dmg
 

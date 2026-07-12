@@ -175,7 +175,8 @@ happens in CI; nothing is built locally.
 5. **end-to-end smoke test**: import numpy/cv2/mxnet from the bundled python, then
    launch the real Electron app and drive a pywebio websocket session
    (`index()` → `add_css`) — fails the build if the GUI can't render,
-6. upload `dist/*.dmg` as the **`AzurLaneAutoScript-mac-arm64-dmg`** artifact.
+6. upload `dist/*.dmg` as the **`AzurLaneAutoScript-mac-arm64-<upstream-commit>`** artifact
+   (the `.dmg` filename and the artifact name both carry the packaged upstream short commit hash).
 
 Trigger: push an `alas-v*` tag, or run **build-macos-alas** manually (`workflow_dispatch`).
 
@@ -187,6 +188,6 @@ Trigger: push an `alas-v*` tag, or run **build-macos-alas** manually (`workflow_
 | 0    | `00-prepare-webapp.sh`    | copy webapp → `build/`, overlay mac patches                 |
 | 0.6  | `06-make-icons.sh`        | generate the dock (`.icns`) + menu-bar (`tray.png`) icons from the upstream art |
 | 1    | `10-build-shell.sh`       | `npm install`, vite build, `electron-builder --dir`         |
-| 2    | `20-assemble.sh`          | copy payload into `.app`, write `deploy.yaml`               |
-| 3    | `30-package.sh`           | ad-hoc sign, `create-dmg` → `dist/`                         |
+| 2    | `20-assemble.sh`          | copy payload into `.app`, write `deploy.yaml`, drop upstream deploy templates |
+| 3    | `30-package.sh`           | ad-hoc sign, `create-dmg` → `dist/` (DMG named by upstream commit hash) |
 | 4    | `40-smoke-test.sh`        | headless: launch bundled python, assert webui HTTP 200      |

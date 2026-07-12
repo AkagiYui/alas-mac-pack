@@ -27,6 +27,17 @@ log "Writing mac deploy.yaml ($DEPLOY_TEMPLATE)"
 [ -f "$DEPLOY_TEMPLATE" ] || die "deploy template not found: $DEPLOY_TEMPLATE"
 cp "$DEPLOY_TEMPLATE" "$PAYLOAD/app/config/deploy.yaml"
 
+# Drop the upstream deploy templates from the bundle. The renderer's first-run
+# check (checkIsFirst = "config/deploy.template.yaml exists") reads their presence
+# as "repo already deployed" and skips the language/region/theme setup screen
+# (InstallAlas.vue). Because we pre-clone the repo at build time the template is
+# always present, so that screen never shows. Removing it lets the setup screen
+# appear once on first launch; the startup `git reset --hard origin/master`
+# (AutoUpdate) restores the tracked template afterwards, so it won't reappear on
+# later launches. (No-op for the alas profile, whose shell has no such screen.)
+log "Removing upstream deploy templates so the first-run setup screen can show"
+rm -f "$PAYLOAD/app/config"/deploy.template*.yaml
+
 log "Sanity-checking bundled python: payload/$PY_REL"
 test -x "$PAYLOAD/$PY_REL" || die "bundled python missing/not executable: $PAYLOAD/$PY_REL"
 test -x "$PAYLOAD/platform-tools/adb" || warn "bundled adb missing/not executable"
