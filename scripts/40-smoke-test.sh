@@ -80,7 +80,16 @@ log "  GUI session rendered OK"
 # render — this fails on the old "bind on address == ready" behaviour.
 log "[3/3] Stale-backend port reclaim (anti-hijack)"
 cleanup            # stop check-2's app so the port is free to squat
-for _ in $(seq 1 10); do /usr/sbin/lsof -ti "tcp:$PORT" >/dev/null 2>&1 || break; sleep 1; done
+# Free the port for real: check-2's webui listener is a uvicorn multiprocessing
+# child (python -c "...spawn_main...") that pkill-by-name misses, so kill
+# whatever still holds the port until it's actually free.
+for _ in $(seq 1 15); do
+  pids=$(/usr/sbin/lsof -ti "tcp:$PORT" 2>/dev/null || true)
+  [ -z "$pids" ] && break
+  # shellcheck disable=SC2086
+  kill -9 $pids 2>/dev/null || true
+  sleep 1
+done
 
 # A foreign server: binds the port but never speaks HTTP/websocket. If the app
 # wrongly attached to it (the old bug), the pywebio session can't render.
