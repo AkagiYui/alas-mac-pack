@@ -84,6 +84,12 @@ mv "$BUILD_DIR/platform-tools" "$PAYLOAD/platform-tools"
 rm -f "$BUILD_DIR/platform-tools.zip"
 test -x "$PAYLOAD/platform-tools/adb" || die "adb not found after extract"
 
+# --- 3.5 git (self-contained, relocatable) ----------------------------------
+# SRC is pure pip (no conda), so unlike the old alas approach there's no env git
+# to reuse, and we can't assume the user's Mac has one. Bundle Apple's git via
+# the shared helper (deploy.yaml GitExecutable = ../git/git). See docs/bundling-git.md.
+bash "$REPO_ROOT/scripts/bundle-git.sh" "$PAYLOAD"
+
 # --- 4. slim + verify -------------------------------------------------------
 log "Slimming the python env"
 STD="$PAYLOAD/python/lib/python${PBS_PY_VERSION}"

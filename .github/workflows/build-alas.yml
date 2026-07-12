@@ -1,11 +1,12 @@
-name: build-macos
+name: build-macos-alas
 
 # Builds the AzurLaneAutoScript macOS (Apple Silicon) Electron package and
 # uploads the .dmg as a workflow artifact.
 #
 # Nothing heavy is stored in the repo: the conda python env is created at build
-# time from config/environment.yml, the Alas repo is cloned at its LATEST RELEASE
-# commit, and adb is downloaded from Google. Everything is packaged into the .app.
+# time from config/environment-alas.yml, the Alas repo is cloned at its LATEST
+# RELEASE commit, and adb is downloaded from Google. Everything is packaged into
+# the .app.
 #
 # Runs on macos-15 so the end-to-end smoke test validates on the same OS users
 # have (macOS 15 / Sequoia) — a broken artifact fails the build instead of shipping.
@@ -14,18 +15,21 @@ on:
   workflow_dispatch:
   push:
     tags:
-      - 'v*'
+      - 'alas-v*'
 
 permissions:
   contents: read
 
 concurrency:
-  group: build-${{ github.ref }}
+  group: build-alas-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   build:
     runs-on: macos-15           # Apple Silicon (arm64), macOS 15 = users' OS
+    env:
+      PROFILE: alas
+      GH_TOKEN: ${{ github.token }}   # for `gh release view` (resolve release tag)
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -43,14 +47,12 @@ jobs:
         with:
           miniforge-version: latest
           activate-environment: alas
-          environment-file: config/environment.yml
+          environment-file: config/environment-alas.yml
           auto-activate-base: false
 
       - name: Build payload (clone repo + copy conda env + adb)
         shell: bash -el {0}     # login shell so `conda` is initialised
-        env:
-          GH_TOKEN: ${{ github.token }}   # for `gh release view` (resolve release tag)
-        run: bash scripts/05-build-payload.sh
+        run: bash scripts/05-alas-build-payload.sh
 
       - name: Build Electron shell
         run: |

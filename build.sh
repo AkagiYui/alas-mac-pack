@@ -15,7 +15,7 @@
 set -euo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 S="$HERE/scripts"
-# Resolve the profile's payload builder (05-build-payload.sh | 05-src-build-payload.sh)
+# Resolve the profile's payload builder (05-alas-build-payload.sh | 05-src-build-payload.sh)
 PAYLOAD_BUILDER="$(cd "$S" && source ./env.sh >/dev/null 2>&1; echo "$PAYLOAD_BUILDER")"
 
 case "${1:-all}" in

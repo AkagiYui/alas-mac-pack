@@ -12,8 +12,11 @@ Deploy:
   Git:
     Repository: global
     Branch: master
-    # No git bundled; the deploy module falls back to the system git (Xcode CLT).
-    GitExecutable: git
+    # Relocatable git bundled by 05-src-build-payload.sh at payload/git (a
+    # conda-forge git + a self-locating wrapper). Path is relative to the repo
+    # root (payload/app), which config.py filepath() resolves to payload/git/git,
+    # so self-update works without a system git / Xcode CLT.
+    GitExecutable: ../git/git
     GitProxy: null
     SSLVerify: true
     # On: installer.py git-updates to master at startup, and the webui updater

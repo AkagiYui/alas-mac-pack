@@ -168,9 +168,9 @@ dependencies:
   - zipp=3.11.0=py38hca03da5_0
   - zlib=1.2.13=h53f4e23_5
   - zstd=1.5.5=hd90d995_0
-  # alas-mac-pack: bundle git inside the env so the packaged app's self-update
-  # works on machines without a system git (falls back to system git otherwise).
-  - git
+  # NOTE: git is intentionally NOT bundled in the env — conda's git bakes absolute
+  # build-machine paths and isn't relocatable. The packaged app uses a bundled
+  # Apple git at payload/git instead (scripts/bundle-git.sh). See docs/bundling-git.md.
   - pip:
       - adbutils==0.11.0
       - alas-webapp==0.3.7.0

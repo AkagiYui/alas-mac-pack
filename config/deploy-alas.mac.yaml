@@ -10,14 +10,18 @@
 # stay valid no matter where the user drags the .app.
 #
 #   payload/app                      <- repo root (this file: payload/app/config/)
-#   payload/miniforge3/envs/alas     <- ../miniforge3/envs/alas  (conda env: python + git)
+#   payload/miniforge3/envs/alas     <- ../miniforge3/envs/alas  (conda env: python)
+#   payload/git                      <- ../git/git               (bundled Apple git)
 #   payload/platform-tools           <- ../platform-tools        (adb)
 Deploy:
   Git:
     Repository: https://github.com/LmeSzinc/AzurLaneAutoScript
     Branch: master
-    # git is bundled inside the conda env; falls back to system git if absent.
-    GitExecutable: ../miniforge3/envs/alas/bin/git
+    # Relocatable Apple git bundled by scripts/bundle-git.sh at payload/git (a
+    # system-linked git + a self-locating wrapper), same as the src profile. The
+    # conda env's own git bakes absolute build-machine paths and isn't
+    # relocatable, so it can't be used directly. See docs/bundling-git.md.
+    GitExecutable: ../git/git
     GitProxy: null
     SSLVerify: true
     AutoUpdate: true

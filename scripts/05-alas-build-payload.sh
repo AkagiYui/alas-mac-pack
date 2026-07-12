@@ -4,7 +4,7 @@
 #   - copy the conda env `alas`                       -> payload/miniforge3/envs/alas
 #   - download Android platform-tools (adb)           -> payload/platform-tools
 #
-# The conda env `alas` must already exist (created from config/environment.yml
+# The conda env `alas` must already exist (created from config/environment-alas.yml
 # via `conda env create`). In CI this is done by the setup-miniconda step; the
 # script auto-detects the env prefix from `conda`.
 source "$(dirname "${BASH_SOURCE[0]}")/env.sh"
@@ -33,7 +33,7 @@ git -C "$PAYLOAD/app" fetch --depth 1 origin master 2>/dev/null || warn "could n
 # The upstream repo already contains everything we need, so pull it from the
 # clone at build time instead of vendoring anything:
 #   - webapp/ (the Electron shell source) -> build/webapp-upstream (00-prepare
-#     copies it and the overlay/ patches are layered on top)
+#     copies it and the overlay-alas/ patches are layered on top)
 #   - webapp/buildResources/icon.png (icon art) -> build/icon-source.png (06-make-icons)
 if [ -d "$PAYLOAD/app/webapp" ]; then
   rm -rf "$BUILD_DIR/webapp-upstream"
@@ -120,11 +120,13 @@ mv "$BUILD_DIR/platform-tools" "$PAYLOAD/platform-tools"
 rm -f "$tmp"
 test -x "$PAYLOAD/platform-tools/adb" || die "adb not found after extract"
 
+# --- 4. git (self-contained, relocatable) -----------------------------------
+# Bundle Apple's git via the shared helper (same as the src profile), instead of
+# relying on the conda env's git. The conda git bakes absolute build-machine
+# paths (exec-path + CA) and isn't relocatable, so it broke self-update once the
+# .app moved. deploy.yaml GitExecutable = ../git/git. See docs/bundling-git.md.
+bash "$REPO_ROOT/scripts/bundle-git.sh" "$PAYLOAD"
+
 log "Payload built:"
 du -sh "$PAYLOAD"/* 2>/dev/null || true
 log "python: $("$PAYLOAD/miniforge3/envs/$CONDA_ENV_NAME/bin/python" -V 2>&1)"
-if [ -x "$PAYLOAD/miniforge3/envs/$CONDA_ENV_NAME/bin/git" ]; then
-  log "git (bundled): $("$PAYLOAD/miniforge3/envs/$CONDA_ENV_NAME/bin/git" --version)"
-else
-  warn "git not bundled in env — the app will fall back to system git"
-fi

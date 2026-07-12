@@ -2,8 +2,11 @@
 # Shared configuration for the alas-mac-pack build pipeline.
 # Override any of these by exporting them before running build.sh.
 #
-# Two build profiles, selected with PROFILE=alas (default) or PROFILE=src:
-#   alas -> AzurLaneAutoScript, conda env (config/environment.yml)
+# Two build profiles, selected with PROFILE=alas (default) or PROFILE=src.
+# Profile-specific files are peers, marked with the profile name (no unmarked
+# "default" set): config/deploy-<p>.mac.yaml, overlay-<p>/, scripts/05-<p>-build-payload.sh,
+# .github/workflows/build-<p>.yml (+ config/environment-alas.yml for alas's conda env).
+#   alas -> AzurLaneAutoScript, conda env (config/environment-alas.yml)
 #   src  -> StarRailCopilot,    python-build-standalone + pip (requirements.txt)
 
 set -euo pipefail
@@ -20,13 +23,13 @@ case "$PROFILE" in
   alas)
     APP_NAME_DEFAULT="AzurLaneAutoScript"
     UPSTREAM_DEFAULT="LmeSzinc/AzurLaneAutoScript"
-    OVERLAY_DIR="$REPO_ROOT/overlay"
-    DEPLOY_TEMPLATE="$REPO_ROOT/config/deploy.mac.yaml"
+    OVERLAY_DIR="$REPO_ROOT/overlay-alas"
+    DEPLOY_TEMPLATE="$REPO_ROOT/config/deploy-alas.mac.yaml"
     BUILDER_CONFIG="electron-builder.config.js"
     WEBUI_PORT_DEFAULT=22267
     PY_REL="miniforge3/envs/alas/bin/python"          # python inside the payload
     SMOKE_IMPORTS="numpy, cv2, mxnet"
-    PAYLOAD_BUILDER="05-build-payload.sh"
+    PAYLOAD_BUILDER="05-alas-build-payload.sh"
     ;;
   src)
     APP_NAME_DEFAULT="StarRailCopilot"

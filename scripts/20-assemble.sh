@@ -30,6 +30,12 @@ cp "$DEPLOY_TEMPLATE" "$PAYLOAD/app/config/deploy.yaml"
 log "Sanity-checking bundled python: payload/$PY_REL"
 test -x "$PAYLOAD/$PY_REL" || die "bundled python missing/not executable: $PAYLOAD/$PY_REL"
 test -x "$PAYLOAD/platform-tools/adb" || warn "bundled adb missing/not executable"
+# both profiles bundle a relocatable git at payload/git (GitExecutable=../git/git)
+if [ -d "$PAYLOAD/git" ]; then
+  test -x "$PAYLOAD/git/git" || warn "bundled git wrapper missing/not executable: payload/git/git"
+else
+  warn "payload/git missing — self-update will fall back to system git"
+fi
 
 log "Step 2 done. Bundle size:"
 du -sh "$APP_BUNDLE"

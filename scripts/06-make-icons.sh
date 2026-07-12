@@ -10,7 +10,7 @@
 #              an inset card with a soft drop shadow; corners transparent.
 #   tray icon = circular crop of the portrait, sized for the menu bar (@1x + @2x).
 #
-# Source art is extracted from the upstream repo by 05-build-payload.sh
+# Source art is extracted from the upstream repo by the payload builder (05-<profile>-build-payload.sh)
 # (build/icon-source.png). Requires: rsvg-convert (brew install librsvg), sips,
 # iconutil (system).
 source "$(dirname "${BASH_SOURCE[0]}")/env.sh"
@@ -18,7 +18,7 @@ source "$(dirname "${BASH_SOURCE[0]}")/env.sh"
 SRC="${1:-$BUILD_DIR/icon-source.png}"
 if [ ! -f "$SRC" ]; then
   warn "icon source not found ($SRC); keeping the existing buildResources/icon.icns"
-  warn "run 05-build-payload.sh first (it extracts the icon from upstream), or pass a source path"
+  warn "run the payload builder (05-<profile>-build-payload.sh) first (it extracts the icon from upstream), or pass a source path"
   exit 0
 fi
 command -v rsvg-convert >/dev/null || die "rsvg-convert missing (brew install librsvg)"

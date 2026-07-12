@@ -1,11 +1,11 @@
 #!/bin/bash
 # Step 0: copy the upstream Electron shell into the build workdir and overlay
 # the small mac-specific patches. The upstream source is pulled from the cloned
-# repo by 05-build-payload.sh (WEBAPP_SRC=build/webapp-upstream) — nothing
+# repo by the payload builder (05-<profile>-build-payload.sh) (WEBAPP_SRC=build/webapp-upstream) — nothing
 # upstream is stored in this repo.
 source "$(dirname "${BASH_SOURCE[0]}")/env.sh"
 
-[ -d "$WEBAPP_SRC" ] || die "WEBAPP_SRC not found: $WEBAPP_SRC — run 05-build-payload.sh first (it extracts webapp/ from the upstream clone)"
+[ -d "$WEBAPP_SRC" ] || die "WEBAPP_SRC not found: $WEBAPP_SRC — run the payload builder (05-<profile>-build-payload.sh) first (it extracts webapp/ from the upstream clone)"
 
 log "Copying webapp source -> $WEBAPP_BUILD"
 mkdir -p "$WEBAPP_BUILD"
