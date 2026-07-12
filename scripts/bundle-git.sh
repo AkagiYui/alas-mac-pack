@@ -33,8 +33,11 @@ CLT_TPL="$(cd "$(dirname "$CLT_GIT")/../share/git-core/templates" 2>/dev/null &&
 # bundle (libpcre2/libintl) and would break on a Mac without Homebrew. The old
 # Platypus package shipped exactly such a git and only worked where Homebrew was
 # installed — that bug is what this guard prevents.
-leaks="$(otool -L "$CLT_CORE/git-remote-http" | awk 'NR>1{print $1}' \
-  | grep -vE '^/usr/lib|^/System' || true)"
+# Match only real dependency lines (they carry "compatibility version"); this
+# skips otool's path headers, which for a universal (fat) binary repeat per
+# architecture — e.g. Xcode's git on CI — and would otherwise be misread as deps.
+leaks="$(otool -L "$CLT_CORE/git-remote-http" | grep 'compatibility version' \
+  | awk '{print $1}' | grep -vE '^/usr/lib|^/System' || true)"
 [ -z "$leaks" ] || die "git-remote-http links non-system libs ($leaks); need the system/Xcode git, not $CLT_GIT"
 
 GITROOT="$PAYLOAD/git"
