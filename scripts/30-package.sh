@@ -14,15 +14,20 @@ cp -Rc "$APP_BUNDLE" "$FINAL_APP" 2>/dev/null || cp -R "$APP_BUNDLE" "$FINAL_APP
 log "Clearing quarantine xattrs"
 xattr -cr "$FINAL_APP" || true
 
-# Re-seal the bundle after the payload was added. Ad-hoc ("-") signature, no
-# hardened runtime — this is an UNSIGNED distribution, users approve on first
-# launch (right-click > Open, or `xattr -cr`). We sign top-level only so the
-# already-valid signatures of the bundled python/git/adb are left intact.
-log "Ad-hoc signing (top-level re-seal)"
-codesign --force --sign - --timestamp=none "$FINAL_APP" \
-  || warn "codesign failed; app will still run after 'xattr -cr'"
-
-log "Signature summary:"
+# Do NOT re-seal the whole bundle. A valid top-level code signature seals the
+# payload (incl. app/config/deploy.yaml) into CodeResources; on macOS 13+
+# (App Management protection) the app can no longer replace those sealed files
+# from inside its own bundle, so changing the language / editing config / the
+# git self-update all fail with `PermissionError: Operation not permitted` on
+# os.replace(). ALAS is a "green" app — all state lives inside the .app — so the
+# bundle must stay un-sealed, exactly like the original release_dmg.sh (which
+# never ran codesign). The electron-builder shell already carries the adhoc
+# signatures arm64 needs to launch (identity:null), and the payload binaries
+# (python/git/adb, re-signed by fix-env-rpaths.py) keep their own signatures.
+# Users approve the unsigned app on first launch (right-click > Open, or the
+# `xattr -c` shown on the DMG background).
+log "Skipping top-level re-seal (keeps the bundle writable for in-app config + self-update)"
+log "Signature summary (electron-builder shell, unsealed bundle):"
 codesign -dv "$FINAL_APP" 2>&1 | sed 's/^/    /' || true
 
 # --- DMG --------------------------------------------------------------------
