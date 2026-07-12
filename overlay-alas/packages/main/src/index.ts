@@ -1,9 +1,10 @@
 import {app, Menu, Tray, BrowserWindow, ipcMain, globalShortcut, nativeImage} from 'electron';
 import {URL} from 'url';
 import {PyShell} from '/@/pyshell';
-import {webuiArgs, webuiPath, dpiScaling} from '/@/config';
+import {webuiArgs, webuiPath, dpiScaling, webuiPort} from '/@/config';
 
 const path = require('path');
+const {execSync} = require('child_process');
 
 const isSingleInstance = app.requestSingleInstanceLock();
 
@@ -29,10 +30,63 @@ if (import.meta.env.MODE === 'development') {
 /**
  * Load deploy settings and start Alas web server.
  */
-let alas = new PyShell(webuiPath, webuiArgs);
-alas.end(function (err: string) {
-  // if (err) throw err;
-});
+let alas!: PyShell;
+let backendRestartedOnce = false;
+
+/**
+ * --- alas-mac-pack: reclaim the webui port from a stale backend ---
+ * A previous instance (a crash, or an older version still running in the menu
+ * bar when this one launched) can leave a python webui listening on the port.
+ * If we don't clear it, our own python fails to bind and Electron would attach
+ * to that stale server instead — whose working directory may point at a
+ * now-moved/deleted bundle, so the page fails to load './assets/gui/css/alas.css'
+ * with a FileNotFoundError on launch. Free the port before (re)spawning so we
+ * always talk to our own backend.
+ */
+function freeWebuiPort() {
+  try {
+    const out = execSync(`/usr/sbin/lsof -ti tcp:${webuiPort}`, {encoding: 'utf8', timeout: 5000}).trim();
+    for (const pid of out ? out.split('\n') : []) {
+      try {
+        process.kill(Number(pid), 'SIGKILL');
+      } catch { /* already gone */ }
+    }
+  } catch { /* lsof exits non-zero when nothing is listening — nothing to do */ }
+}
+
+function onBackendStderr(message: string) {
+  /**
+   * Receive logs, judge if Alas is ready
+   * `INFO:     Uvicorn running on http://0.0.0.0:22267 (Press CTRL+C to quit)`
+   * or `[Errno 48] error while attempting to bind on address ...`
+   */
+  if (message.includes('Application startup complete')) {
+    alasReady = true;
+    alas.removeAllListeners('stderr');
+    loadURL();
+    return;
+  }
+  // Port still occupied (a squatter survived the pre-kill): never attach to a
+  // foreign server — kill it, free the port and respawn our own backend once.
+  if (message.includes('bind on address') && !backendRestartedOnce) {
+    backendRestartedOnce = true;
+    try {
+      alas.kill(() => { /* noop */ });
+    } catch { /* ignore */ }
+    startBackend();
+  }
+}
+
+function startBackend() {
+  freeWebuiPort();
+  alas = new PyShell(webuiPath, webuiArgs);
+  alas.end(function (/* err: string */) {
+    // if (err) throw err;
+  });
+  alas.on('stderr', onBackendStderr);
+}
+
+startBackend();
 
 
 let mainWindow: BrowserWindow | null = null;
@@ -206,20 +260,6 @@ if (!dpiScaling) {
   app.commandLine.appendSwitch('high-dpi-support', '1');
   app.commandLine.appendSwitch('force-device-scale-factor', '1');
 }
-
-
-alas.on('stderr', function (message: string) {
-  /**
-   * Receive logs, judge if Alas is ready
-   * `INFO:     Uvicorn running on http://0.0.0.0:22267 (Press CTRL+C to quit)`
-   * or `[Errno 10048] error while attempting to bind on address ...`
-   */
-  if (message.includes('Application startup complete') || message.includes('bind on address')) {
-    alasReady = true;
-    alas.removeAllListeners('stderr');
-    loadURL();
-  }
-});
 
 
 app.on('second-instance', () => {
