@@ -37,9 +37,10 @@ ELECTRON_BIN="$APP/Contents/MacOS/$APP_NAME"
 ( cd "$HOME" && "$ELECTRON_BIN" >"$BUILD_DIR/electron-smoke.log" 2>&1 ) &
 EPID=$!
 
+SQPID=""   # set in check 3; declared here so cleanup() is safe under `set -u`
 cleanup() {
-  kill "$EPID" 2>/dev/null || true
-  kill -9 "$SQPID" 2>/dev/null || true
+  kill "${EPID:-}" 2>/dev/null || true
+  kill -9 "${SQPID:-}" 2>/dev/null || true
   pkill -f "$APP_NAME.app/Contents/MacOS" 2>/dev/null || true
   pkill -f "payload/app/gui.py" 2>/dev/null || true
 }
@@ -101,7 +102,7 @@ for _ in $(seq 1 40); do
   if "$PY" "$REPO_ROOT/scripts/webui-session-check.py" "$PORT" >/dev/null 2>&1; then up=1; break; fi
   sleep 3
 done
-kill -9 "$SQPID" 2>/dev/null; wait "$SQPID" 2>/dev/null || true
+kill -9 "$SQPID" 2>/dev/null || true; wait "$SQPID" 2>/dev/null || true
 if [ "$up" != 1 ]; then
   echo "----- reclaim log -----"; grep -iE "bind|error|traceback|assets" "$BUILD_DIR/electron-smoke-reclaim.log" 2>/dev/null | tail -20
   die "app did NOT reclaim :$PORT from a stale backend — it would hijack the stale server and fail with the assets FileNotFoundError."
