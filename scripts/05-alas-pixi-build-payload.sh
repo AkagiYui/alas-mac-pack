@@ -93,9 +93,13 @@ CONDA_ALIGN_PINS=(
   'fonttools = "==4.51.0"'
   'contourpy = "==1.1.1"'
 )
-ALIGN_BLOCK="$(printf '%s\n' "${CONDA_ALIGN_PINS[@]}")"
-awk -v ins="$ALIGN_BLOCK" '/^\[dependencies\]/{print; print ins; next} {print}' \
-    "$WS/pixi.toml" > "$WS/pixi.toml.new" && mv "$WS/pixi.toml.new" "$WS/pixi.toml"
+# Insert via a helper file (multi-line `awk -v` is mishandled by BSD awk on the
+# macOS runner). Read the pins into a buffer, then emit them right after the
+# [dependencies] header.
+printf '%s\n' "${CONDA_ALIGN_PINS[@]}" > "$WS/.align-pins"
+awk 'FNR==NR{buf=buf $0 ORS; next} /^\[dependencies\]/{print; printf "%s", buf; next} {print}' \
+    "$WS/.align-pins" "$WS/pixi.toml" > "$WS/pixi.toml.new" && mv "$WS/pixi.toml.new" "$WS/pixi.toml"
+grep -q '^packaging = ' "$WS/pixi.toml" || warn "conda-align pins not injected"
 
 log "Generated pixi.toml:"
 sed 's/^/    /' "$WS/pixi.toml" 2>/dev/null || true
