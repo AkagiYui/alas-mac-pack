@@ -64,7 +64,7 @@ WS="$BUILD_DIR/pixi-ws"
 rm -rf "$WS"
 mkdir -p "$WS"
 log "pixi init --import $REPO_ROOT/config/environment-alas.yml (platform osx-arm64)"
-pixi init "$WS" --import "$REPO_ROOT/config/environment-alas.yml" --platform osx-arm64 --format pixi
+pixi init "$WS" --import "$REPO_ROOT/config/environment-alas.yml" --platform osx-arm64
 log "Generated pixi.toml:"
 sed 's/^/    /' "$WS/pixi.toml" 2>/dev/null || true
 
