@@ -101,6 +101,19 @@ awk 'FNR==NR{buf=buf $0 ORS; next} /^\[dependencies\]/{print; printf "%s", buf; 
     "$WS/.align-pins" "$WS/pixi.toml" > "$WS/pixi.toml.new" && mv "$WS/pixi.toml.new" "$WS/pixi.toml"
 grep -q '^packaging = ' "$WS/pixi.toml" || warn "conda-align pins not injected"
 
+# gluoncv (pypi) depends on `mxnet`; the conda package that provides the mxnet
+# python module is named `py-mxnet`, which pixi's default mapping doesn't
+# recognise as pypi `mxnet` (the same-name heuristic only applies to conda-forge,
+# and these come from the `anaconda` channel). So uv reinstalls a newer PyPI
+# mxnet on top of the conda one — and that build crashes on the removed np.bool
+# under numpy 1.24. Map conda py-mxnet -> pypi mxnet so the conda mxnet (1.5.1,
+# what the conda build ships) satisfies gluoncv and uv leaves it alone.
+cat >> "$WS/pixi.toml" <<'TOMLEOF'
+
+[workspace.conda-pypi-map]
+anaconda = { mapping = { py-mxnet = "mxnet", mxnet = "mxnet" } }
+TOMLEOF
+
 log "Generated pixi.toml:"
 sed 's/^/    /' "$WS/pixi.toml" 2>/dev/null || true
 
