@@ -1,0 +1,93 @@
+name: build-macos-alas-pixi
+
+# SPIKE — same product as build-macos-alas, but the python env is created with
+# pixi (rattler resolver) instead of conda/miniforge. Runs in PARALLEL with
+# build-alas.yml / build-src.yml; nothing shared is modified.
+#
+# Purpose: prove on GitHub Actions (macos-15) whether pixi can reproduce the
+# fully-pinned alas env (py38 + mxnet from the anaconda/defaults channel +
+# Qt-linked opencv) from the existing config/environment-alas.yml, and still
+# pass the identical native-import + webui smoke test. A green run means the
+# conda -> pixi migration is viable; the generated pixi.toml / pixi.lock are
+# uploaded as artifacts so they can be promoted to committed files.
+#
+# The only step that differs from build-alas.yml is env creation: this installs
+# pixi and runs scripts/05-alas-pixi-build-payload.sh, which emits the env at the
+# SAME payload path (miniforge3/envs/alas) so every downstream step is unchanged.
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'alas-pixi-v*'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-alas-pixi-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: macos-15           # Apple Silicon (arm64), macOS 15 = users' OS
+    env:
+      PROFILE: alas             # reuse the alas profile's paths/scripts/deploy.yaml
+      GH_TOKEN: ${{ github.token }}   # for `gh release view` (resolve release tag)
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.node-version'
+
+      - name: Install build tools
+        run: brew install create-dmg librsvg   # librsvg -> rsvg-convert for icon generation
+
+      - name: Install pixi
+        run: |
+          curl -fsSL https://pixi.sh/install.sh | bash
+          echo "$HOME/.pixi/bin" >> "$GITHUB_PATH"
+
+      - name: Pixi version
+        run: pixi --version
+
+      - name: Build payload (clone repo + pixi env + adb)
+        run: bash scripts/05-alas-pixi-build-payload.sh
+
+      - name: Upload generated pixi manifest + lock
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: alas-pixi-manifest
+          path: |
+            build/alas/pixi.toml.generated
+            build/alas/pixi.lock.generated
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Build Electron shell
+        run: |
+          bash scripts/00-prepare-webapp.sh
+          bash scripts/06-make-icons.sh
+          bash scripts/10-build-shell.sh
+
+      - name: Assemble payload into .app
+        run: bash scripts/20-assemble.sh
+
+      - name: Package (ad-hoc sign + dmg)
+        run: bash scripts/30-package.sh
+
+      - name: Headless smoke test (python + webui)
+        run: bash scripts/40-smoke-test.sh
+
+      - name: Upload DMG artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: AzurLaneAutoScript-mac-arm64-pixi-${{ env.UPSTREAM_COMMIT }}
+          path: dist/*.dmg
+          if-no-files-found: error
+          compression-level: 0    # dmg is already compressed
+          retention-days: 14
