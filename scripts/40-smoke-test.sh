@@ -22,6 +22,21 @@ PORT="$(grep -E '^\s*WebuiPort:' "$PAYLOAD/app/config/deploy.yaml" | grep -oE '[
 PORT="${PORT:-$WEBUI_PORT}"
 [ -x "$PY" ] || die "bundled python missing: $PY"
 
+# The packaged src app sends its first launch to the language/region/theme setup
+# screen (InstallAlas) whenever config/deploy.template.yaml is absent (the
+# renderer's checkIsFirst). We deliberately ship WITHOUT that template
+# (20-assemble) so the screen shows once for real users — but a headless test
+# can't click "Install" to proceed, so the webui would never start. The .dmg has
+# already been built (30-package) from the template-less bundle, so seeding a
+# template back into this post-package test copy doesn't change the shipped
+# artifact; it just lets the first-run check boot the webui directly so we can
+# validate python + electron + webui. (No effect on the alas profile — its shell
+# launches gui.py directly and has no such screen.)
+if [ ! -f "$PAYLOAD/app/config/deploy.template.yaml" ]; then
+  log "Seeding config/deploy.template.yaml so the first-run setup screen doesn't block the headless test"
+  cp "$PAYLOAD/app/config/deploy.yaml" "$PAYLOAD/app/config/deploy.template.yaml"
+fi
+
 # --- 1. native imports ------------------------------------------------------
 log "[1/3] Native extension imports ($SMOKE_IMPORTS) from the bundled python"
 "$PY" -c "import ${SMOKE_IMPORTS// /}; print('  native imports OK: ${SMOKE_IMPORTS}')" \
