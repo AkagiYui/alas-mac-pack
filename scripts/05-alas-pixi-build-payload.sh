@@ -77,11 +77,24 @@ awk 'BEGIN{done=0}
 grep -q 'channel-priority' "$WS/pixi.toml" || warn "channel-priority not injected (manifest table header unexpected)"
 
 # pixi runs a UNIFIED conda+pypi solve (stricter than conda's loose pip layering,
-# where `pip install packaging==20.9` simply overwrote conda's copy). `packaging`
-# is only pip-pinned (==20.9) in the yml, but conda's `pooch` needs it, so pixi's
-# conda solve pulls the newest packaging and it conflicts with the pypi pin. Pin
-# packaging on the conda side to the same version so both solves agree.
-awk '/^\[dependencies\]/{print; print "packaging = \"==20.9\""; next} {print}' \
+# where `pip install X==old` simply overwrote conda's newer copy). Several pure-
+# python packages are pip-pinned in the yml but are ALSO pulled as conda
+# transitives; pixi's conda solve picks the newest and it then conflicts with the
+# pip pin (packaging, pyparsing, ...). All of these exist on conda-forge and
+# already shipped together in the conda env, so pin them on the conda side to the
+# same versions the pip block uses — both solves then agree. This is the concrete
+# "align pinned versions" work the conda->pixi migration requires.
+CONDA_ALIGN_PINS=(
+  'packaging = "==20.9"'
+  'pyparsing = "==3.1.2"'
+  'python-dateutil = "==2.9.0.post0"'
+  'cycler = "==0.12.1"'
+  'kiwisolver = "==1.4.5"'
+  'fonttools = "==4.51.0"'
+  'contourpy = "==1.1.1"'
+)
+ALIGN_BLOCK="$(printf '%s\n' "${CONDA_ALIGN_PINS[@]}")"
+awk -v ins="$ALIGN_BLOCK" '/^\[dependencies\]/{print; print ins; next} {print}' \
     "$WS/pixi.toml" > "$WS/pixi.toml.new" && mv "$WS/pixi.toml.new" "$WS/pixi.toml"
 
 log "Generated pixi.toml:"
