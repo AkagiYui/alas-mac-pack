@@ -76,6 +76,14 @@ awk 'BEGIN{done=0}
      {print}' "$WS/pixi.toml" > "$WS/pixi.toml.new" && mv "$WS/pixi.toml.new" "$WS/pixi.toml"
 grep -q 'channel-priority' "$WS/pixi.toml" || warn "channel-priority not injected (manifest table header unexpected)"
 
+# pixi runs a UNIFIED conda+pypi solve (stricter than conda's loose pip layering,
+# where `pip install packaging==20.9` simply overwrote conda's copy). `packaging`
+# is only pip-pinned (==20.9) in the yml, but conda's `pooch` needs it, so pixi's
+# conda solve pulls the newest packaging and it conflicts with the pypi pin. Pin
+# packaging on the conda side to the same version so both solves agree.
+awk '/^\[dependencies\]/{print; print "packaging = \"==20.9\""; next} {print}' \
+    "$WS/pixi.toml" > "$WS/pixi.toml.new" && mv "$WS/pixi.toml.new" "$WS/pixi.toml"
+
 log "Generated pixi.toml:"
 sed 's/^/    /' "$WS/pixi.toml" 2>/dev/null || true
 
