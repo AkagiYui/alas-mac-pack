@@ -65,6 +65,17 @@ rm -rf "$WS"
 mkdir -p "$WS"
 log "pixi init --import $REPO_ROOT/config/environment-alas.yml (platform osx-arm64)"
 pixi init "$WS" --import "$REPO_ROOT/config/environment-alas.yml" --platform osx-arm64
+
+# The env mixes the `anaconda` (main) and `conda-forge` channels and relied on
+# conda's flexible resolution (e.g. ffmpeg from anaconda pulling aom from
+# conda-forge). pixi defaults to STRICT channel priority, which excludes the
+# lower-priority channel's package and makes the solve unsatisfiable. Disable
+# strict priority to reproduce conda's mixing behaviour.
+awk 'BEGIN{done=0}
+     /^\[(workspace|project)\]/ && !done {print; print "channel-priority = \"disabled\""; done=1; next}
+     {print}' "$WS/pixi.toml" > "$WS/pixi.toml.new" && mv "$WS/pixi.toml.new" "$WS/pixi.toml"
+grep -q 'channel-priority' "$WS/pixi.toml" || warn "channel-priority not injected (manifest table header unexpected)"
+
 log "Generated pixi.toml:"
 sed 's/^/    /' "$WS/pixi.toml" 2>/dev/null || true
 
